@@ -1,0 +1,25 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - baileys_auth:/srv/whatsapp_bridge/baileys_auth_info
+      - baileys_logs:/srv/whatsapp_bridge/logs
+    restart: unless-stopped
+
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  baileys_auth:
+  baileys_logs:

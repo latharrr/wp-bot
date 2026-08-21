@@ -1,0 +1,83 @@
+from datetime import datetime, timezone
+from typing import Optional
+
+from app.core.supabase_client import get_supabase
+from app.models.group import GroupMemberRecord, GroupRecord
+
+
+class SupabaseGroupRepository:
+    def __init__(self) -> None:
+        self._client = get_supabase()
+
+    def upsert_group(self, group_jid: str, group_name: Optional[str], member_count: int) -> None:
+        payload = {
+            "group_jid": group_jid,
+            "group_name": group_name,
+            "member_count": member_count,
+            "last_synced_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self._client.table("groups").upsert(payload, on_conflict="group_jid").execute()
+
+    def upsert_members(self, group_jid: str, members: list[GroupMemberRecord]) -> None:
+        if not members:
+            return
+        now = datetime.now(timezone.utc).isoformat()
+        rows = []
+        for member in members:
+            row = member.to_supabase_payload()
+            row["last_seen_at"] = now
+            rows.append(row)
+        self._client.table("group_members").upsert(rows, on_conflict="group_jid,member_jid").execute()
+
+    def list_groups(self) -> list[dict]:
+        response = (
+            self._client.table("groups")
+            .select("*")
+            .order("group_name")
+            .execute()
+        )
+        return response.data or []
+
+    def get_group(self, group_jid: str) -> Optional[dict]:
+        response = (
+            self._client.table("groups").select("*").eq("group_jid", group_jid).limit(1).execute()
+        )
+        rows = response.data or []
+        return rows[0] if rows else None
+
+    def list_members(self, group_jid: str) -> list[dict]:
+        response = (
+            self._client.table("group_members")
+            .select("*")
+            .eq("group_jid", group_jid)
+            .order("display_name")
+            .execute()
+        )
+        return response.data or []
+
+    def list_exportable_contacts(self, group_jid: str) -> list[dict]:
+        """Reads ONLY from the exportable_contacts view -- see migration 016. Never query
+        group_members directly for anything that leaves the process as an export or a
+        person-identifying dashboard view."""
+        response = (
+            self._client.table("exportable_contacts")
+            .select("*")
+            .eq("group_jid", group_jid)
+            .execute()
+        )
+        return response.data or []
+
+    def set_consent_status(self, group_jid: str, status: str, actor: str) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        self._client.table("groups").update(
+            {"consent_status": status, "consent_marked_by": actor, "consent_marked_at": now}
+        ).eq("group_jid", group_jid).execute()
+        action = "consented" if status == "consented" else "revoked"
+        self._client.table("group_consent_log").insert(
+            {"group_jid": group_jid, "action": action, "actor": actor}
+        ).execute()
+
+    def log_consent_requested(self, group_jid: str, actor: str) -> None:
+        self._client.table("group_consent_log").insert(
+            {"group_jid": group_jid, "action": "requested", "actor": actor}
+        ).execute()

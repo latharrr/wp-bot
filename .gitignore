@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.venv-check/
+*.egg-info/
+
+# Env
+.env
+
+# Node
+node_modules/
+whatsapp_bridge/baileys_auth_info/
+whatsapp_bridge/logs/
+whatsapp_bridge/.pairing-code.json
+whatsapp_bridge/dist/
+
+# Next.js
+dashboard/.next/
+dashboard/out/
+dashboard/next-env.d.ts
+
+# OS
+.DS_Store
