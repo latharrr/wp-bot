@@ -1,6 +1,6 @@
 import type { WAMessage, WASocket } from '@whiskeysockets/baileys';
 import { internalClient } from '../http/internalClient.js';
-import { phoneFromJid } from '../utils/phone.js';
+import { resolvePhone } from '../utils/phone.js';
 import { handlePollCreation, handlePollUpdate } from './polls.js';
 
 function extractText(msg: WAMessage): string | undefined {
@@ -25,17 +25,12 @@ export async function handleIncomingMessage(sock: WASocket, msg: WAMessage): Pro
   if (!text || !msg.key.id) return;
 
   const senderJid = msg.key.participant ?? msg.key.remoteJid ?? '';
-  // In @lid-addressed groups, key.participant is an anonymized linked ID; key.participantAlt
-  // carries the real phone-number JID when Baileys has resolved it (see groups.ts for the
-  // same distinction on group member sync -- these must derive phone the same way, since
-  // consent matching joins on member_phone across both).
-  const senderPhoneJid = msg.key.participantAlt ?? senderJid;
   const replyTo = msg.message?.extendedTextMessage?.contextInfo?.stanzaId ?? undefined;
 
   await internalClient.message({
     group_jid: groupJid,
     sender_jid: senderJid,
-    sender_phone: phoneFromJid(senderPhoneJid),
+    sender_phone: resolvePhone(senderJid, msg.key.participantAlt),
     sender_name: msg.pushName ?? null,
     message: text,
     message_id: msg.key.id,

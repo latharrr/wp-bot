@@ -35,6 +35,7 @@ export function ConsentActionsPanel({
 
   const consentByPhone = new Map(memberConsent.map((m) => [m.member_phone, m]));
   const optedInCount = memberConsent.filter((m) => m.opted_in).length;
+  const noPhoneCount = members.filter((m) => !m.phone).length;
 
   // Only members with a phone that aren't already opted in are eligible for bulk verbal opt-in.
   const eligiblePhones = useMemo(
@@ -98,6 +99,12 @@ export function ConsentActionsPanel({
         <div>
           <div className="row"><strong>Group consent</strong> <ConsentStatusBadge status={consentStatus} /></div>
           <div className="muted" style={{ marginTop: 4 }}>{optedInCount} member(s) opted in individually</div>
+          {noPhoneCount > 0 && (
+            <div className="muted" style={{ marginTop: 2 }}>
+              {noPhoneCount} of {members.length} member(s) have no phone number disclosed by WhatsApp to this
+              account — they can't be opted in or contacted through this app.
+            </div>
+          )}
         </div>
         <div className="row">
           {consentStatus !== 'consented' && (
@@ -177,13 +184,15 @@ export function ConsentActionsPanel({
                     )}
                   </td>
                   <td>{member.display_name ?? '—'}</td>
-                  <td>{phone ?? '—'}</td>
+                  <td>{phone ?? <span className="muted">Not disclosed by WhatsApp</span>}</td>
                   <td>
-                    {isOptedIn
-                      ? `Opted in (${consent?.opt_in_method})`
-                      : consent
-                        ? 'Opted out'
-                        : 'No response yet'}
+                    {!phone
+                      ? '—'
+                      : isOptedIn
+                        ? `Opted in (${consent?.opt_in_method})`
+                        : consent
+                          ? 'Opted out'
+                          : 'No response yet'}
                   </td>
                   <td>
                     {!phone ? null : isOptedIn ? (
