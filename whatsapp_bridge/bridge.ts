@@ -46,6 +46,10 @@ async function start(): Promise<void> {
   sock.ev.on('creds.update', saveCreds);
 
   if (config.usePairingCode && config.phoneNumber && !sock.authState.creds.registered) {
+    // requestPairingCode sends a node over the raw websocket immediately; the connection
+    // isn't open yet at this point (makeWASocket only starts connecting), so without this it
+    // throws "Connection Closed" every time instead of ever producing a code.
+    await sock.waitForSocketOpen();
     const code = await sock.requestPairingCode(config.phoneNumber);
     console.log(`Pairing code for ${config.phoneNumber}: ${code}`);
     writePairingCode(code);
