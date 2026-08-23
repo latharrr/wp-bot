@@ -14,7 +14,10 @@ def get_status(_: str = Depends(get_current_admin)) -> dict:
     return {
         "status": state.status.value,
         "phone_number": state.phone_number,
-        "pairing_required": state.status.value in ("disconnected", "logged_out"),
+        # A fresh, never-paired bridge sits in "connecting" indefinitely (it never requests a
+        # pairing code on its own), so gating this on disconnected/logged_out only left no way
+        # to pair on first run.
+        "pairing_required": state.status.value != "connected",
         "last_event_at": state.last_event_at,
         "last_error": state.last_error,
     }
