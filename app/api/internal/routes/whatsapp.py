@@ -12,6 +12,7 @@ from app.models.whatsapp import (
     ReactionPayload,
     SessionEventPayload,
 )
+from app.repositories.supabase_group_repository import SupabaseGroupRepository
 from app.repositories.supabase_keyword_repository import SupabaseKeywordRepository
 from app.services.consent_service import get_consent_service
 from app.services.email_service import send_logout_alert
@@ -53,13 +54,18 @@ def poll_vote(payload: PollVotePayload) -> dict:
 @router.post("/message")
 def message(payload: MessagePayload) -> dict:
     keyword_repo = SupabaseKeywordRepository()
+    # The bridge's own per-message phone guess (key.participantAlt) isn't reliably populated by
+    # Baileys for @lid-addressed groups; group_members.phone is resolved from the more reliable
+    # groupMetadata sync, so prefer it and keep the two sources of "this person's phone" in sync
+    # -- otherwise consent (keyed on phone) silently stops matching for this sender.
+    sender_phone = SupabaseGroupRepository().get_member_phone(payload.group_jid, payload.sender_jid) or payload.sender_phone
     sent_at = datetime.fromtimestamp(payload.message_timestamp_ms / 1000, tz=timezone.utc).isoformat()
     message_row = {
         "group_jid": payload.group_jid,
         "group_name": payload.group_name,
         "message_id": payload.message_id,
         "sender_jid": payload.sender_jid,
-        "sender_phone": payload.sender_phone,
+        "sender_phone": sender_phone,
         "sender_name": payload.sender_name,
         "message_text": payload.message,
         "reply_to_message_id": payload.reply_to_message_id,
@@ -71,16 +77,15 @@ def message(payload: MessagePayload) -> dict:
     if active_keywords:
         get_keyword_search_service().check_message_for_keywords(active_keywords, message_row)
 
-    consent_opt_in = get_consent_service().handle_reply(
-        payload.group_jid, payload.reply_to_message_id, payload.sender_phone
-    )
+    consent_opt_in = get_consent_service().handle_reply(payload.group_jid, payload.reply_to_message_id, sender_phone)
 
     return {"ok": True, "consent_opt_in": consent_opt_in}
 
 
 @router.post("/reaction")
 def reaction(payload: ReactionPayload) -> dict:
-    consent_opt_in = get_consent_service().handle_reaction(
-        payload.group_jid, payload.target_message_id, payload.reactor_phone
+    reactor_phone = (
+        SupabaseGroupRepository().get_member_phone(payload.group_jid, payload.reactor_jid) or payload.reactor_phone
     )
+    consent_opt_in = get_consent_service().handle_reaction(payload.group_jid, payload.target_message_id, reactor_phone)
     return {"ok": True, "consent_opt_in": consent_opt_in}

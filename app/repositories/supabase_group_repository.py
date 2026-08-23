@@ -55,6 +55,25 @@ class SupabaseGroupRepository:
         )
         return response.data or []
 
+    def get_member_phone(self, group_jid: str, member_jid: str) -> Optional[str]:
+        """The authoritative phone for a member identity, resolved once via groupMetadata's
+        phoneNumber field (see whatsapp_bridge/src/handlers/groups.ts) and stored here. Message
+        and reaction events should look up phone this way rather than trusting their own
+        per-event fields, which Baileys doesn't reliably populate for @lid-addressed groups --
+        otherwise the same person ends up with two different "phone" values across tables and
+        consent (keyed on phone) silently stops matching.
+        """
+        response = (
+            self._client.table("group_members")
+            .select("phone")
+            .eq("group_jid", group_jid)
+            .eq("member_jid", member_jid)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        return rows[0]["phone"] if rows else None
+
     def list_exportable_contacts(self, group_jid: str) -> list[dict]:
         """Reads ONLY from the exportable_contacts view -- see migration 016. Never query
         group_members directly for anything that leaves the process as an export or a

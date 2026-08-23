@@ -27,7 +27,9 @@ class KeywordSearchService:
         before this keyword was ever searched), backfills keyword_match, records the search
         in keyword_watch, then returns only exportable (consent-gated) hits plus a
         non-identifying count of how many additional hits exist but aren't consented."""
-        keyword = keyword.strip()
+        # Normalize case so "PG" and "pg" are the same keyword_watch entry -- record_watch and
+        # upsert_match key on exact string equality, not the ilike used for message matching.
+        keyword = keyword.strip().lower()
         if not keyword:
             return {"keyword": keyword, "results": [], "hidden_match_count": 0}
 
