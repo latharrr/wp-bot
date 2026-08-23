@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 
 from app.api.deps import get_current_admin
@@ -32,8 +34,13 @@ def get_poll_detail(group_jid: str, poll_message_id: str, _: str = Depends(get_c
 
 
 @router.get("/{poll_message_id}/export")
-def export_poll(group_jid: str, poll_message_id: str, actor: str = Depends(get_current_admin)) -> Response:
-    content, filename = get_export_service().export_poll(poll_message_id, group_jid, actor)
+def export_poll(
+    group_jid: str,
+    poll_message_id: str,
+    option: Optional[str] = Query(default=None, description="Limit the export to voters who picked this option"),
+    actor: str = Depends(get_current_admin),
+) -> Response:
+    content, filename = get_export_service().export_poll(poll_message_id, group_jid, actor, option)
     return Response(
         content=content,
         media_type=XLSX_MEDIA_TYPE,

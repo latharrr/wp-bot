@@ -4,6 +4,7 @@ exportable_keyword_matches -- see migration 016 and supabase_group_repository /
 supabase_keyword_repository for why those views exist."""
 import io
 from datetime import datetime, timezone
+from typing import Optional
 
 from openpyxl import Workbook
 
@@ -44,12 +45,16 @@ class ExportService:
         )
         return content, filename
 
-    def export_poll(self, poll_message_id: str, group_jid: str, actor: str) -> tuple[bytes, str]:
+    def export_poll(
+        self, poll_message_id: str, group_jid: str, actor: str, option: Optional[str] = None
+    ) -> tuple[bytes, str]:
         group = self._groups.get_group(group_jid)
         is_consented = bool(group and group.get("consent_status") == "consented")
 
         if is_consented:
             rows = self._polls.get_voter_breakdown(poll_message_id)
+            if option:
+                rows = [r for r in rows if option in (r.get("selected_options") or [])]
             content = _workbook_bytes(
                 ["Voter Name", "Phone", "Selected Options", "Voted At"],
                 [
@@ -60,10 +65,13 @@ class ExportService:
             row_count = len(rows)
         else:
             aggregate = self._polls.get_vote_aggregate(poll_message_id)
+            if option:
+                aggregate = {option: aggregate.get(option, 0)}
             content = _workbook_bytes(["Option", "Vote Count"], [[k, v] for k, v in aggregate.items()])
             row_count = sum(aggregate.values())
 
-        filename = f"poll_{poll_message_id.replace('@', '_')}_{_timestamp()}.xlsx"
+        option_suffix = f"_{option}" if option else ""
+        filename = f"poll_{poll_message_id.replace('@', '_')}{option_suffix}_{_timestamp()}.xlsx"
         self._audit.log_export(
             ExportAuditLogEntry(actor=actor, export_type="poll", group_jid=group_jid, row_count=row_count, filename=filename)
         )
