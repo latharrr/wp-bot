@@ -31,11 +31,17 @@ class SupabaseConsentRepository:
         return rows[0] if rows else None
 
     def record_opt_in(self, record: MemberConsentRecord) -> None:
-        payload = record.to_supabase_payload()
-        payload["opted_out_at"] = None
-        self._client.table("member_consent").upsert(
-            payload, on_conflict="group_jid,member_phone"
-        ).execute()
+        self.bulk_record_opt_in([record])
+
+    def bulk_record_opt_in(self, records: list[MemberConsentRecord]) -> None:
+        if not records:
+            return
+        rows = []
+        for record in records:
+            payload = record.to_supabase_payload()
+            payload["opted_out_at"] = None
+            rows.append(payload)
+        self._client.table("member_consent").upsert(rows, on_conflict="group_jid,member_phone").execute()
 
     def record_opt_out(self, group_jid: str, member_phone: str) -> None:
         self._client.table("member_consent").update(

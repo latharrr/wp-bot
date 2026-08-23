@@ -32,3 +32,7 @@ class ConsentRequestBody(BaseModel):
 
 class ManualOptInBody(BaseModel):
     reason: Optional[str] = None
+
+
+class BulkOptInBody(BaseModel):
+    phones: list[str]

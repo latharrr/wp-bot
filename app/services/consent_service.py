@@ -56,6 +56,14 @@ class ConsentService:
     def manual_opt_out(self, group_jid: str, member_phone: str) -> None:
         self._consent.record_opt_out(group_jid, member_phone)
 
+    def bulk_manual_opt_in(self, group_jid: str, member_phones: list[str]) -> int:
+        records = [
+            MemberConsentRecord(group_jid=group_jid, member_phone=phone, opted_in=True, opt_in_method="manual_admin")
+            for phone in dict.fromkeys(phone.strip() for phone in member_phones if phone.strip())
+        ]
+        self._consent.bulk_record_opt_in(records)
+        return len(records)
+
     def handle_reply(self, group_jid: str, reply_to_message_id: Optional[str], sender_phone: Optional[str]) -> bool:
         """Called from the /internal/whatsapp/message webhook. Returns True if this reply
         opted the sender into consent (matched an active prompt in their group)."""

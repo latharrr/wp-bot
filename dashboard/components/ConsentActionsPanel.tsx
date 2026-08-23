@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { api, ApiError } from '@/lib/apiClient';
 import { ConsentStatusBadge } from '@/components/ConsentStatusBadge';
 
@@ -31,9 +31,18 @@ export function ConsentActionsPanel({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const consentByPhone = new Map(memberConsent.map((m) => [m.member_phone, m]));
   const optedInCount = memberConsent.filter((m) => m.opted_in).length;
+
+  // Only members with a phone that aren't already opted in are eligible for bulk verbal opt-in.
+  const eligiblePhones = useMemo(
+    () => members.map((m) => m.phone).filter((phone): phone is string => !!phone && !consentByPhone.get(phone)?.opted_in),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [members, memberConsent],
+  );
+  const allSelected = eligiblePhones.length > 0 && eligiblePhones.every((phone) => selected.has(phone));
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -58,6 +67,29 @@ export function ConsentActionsPanel({
 
   function optOut(phone: string) {
     run(() => api.post(`/api/v1/groups/${encodeURIComponent(groupJid)}/consent/members/${encodeURIComponent(phone)}/opt-out`, {}));
+  }
+
+  function toggleSelected(phone: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(phone)) next.delete(phone);
+      else next.add(phone);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelected(allSelected ? new Set() : new Set(eligiblePhones));
+  }
+
+  async function bulkOptIn() {
+    if (selected.size === 0) return;
+    await run(() =>
+      api.post(`/api/v1/groups/${encodeURIComponent(groupJid)}/consent/members/bulk-opt-in`, {
+        phones: Array.from(selected),
+      }),
+    );
+    setSelected(new Set());
   }
 
   return (
@@ -98,10 +130,39 @@ export function ConsentActionsPanel({
       </div>
       {error && <div className="error">{error}</div>}
 
+      {eligiblePhones.length > 0 && (
+        <button
+          onClick={bulkOptIn}
+          disabled={busy || selected.size === 0}
+          style={{
+            marginTop: 14,
+            width: '100%',
+            padding: '12px 16px',
+            fontSize: 15,
+            fontWeight: 700,
+            background: selected.size > 0 ? '#2f6fed' : undefined,
+          }}
+        >
+          {busy
+            ? 'Opting in...'
+            : selected.size > 0
+              ? `Opt in ${selected.size} selected member(s) — verbal consent`
+              : 'Select members below to opt in verbally'}
+        </button>
+      )}
+
       {members.length > 0 && (
         <table style={{ marginTop: 14 }}>
           <thead>
-            <tr><th>Name</th><th>Phone</th><th>Status</th><th></th></tr>
+            <tr>
+              <th>
+                <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} disabled={eligiblePhones.length === 0} />
+              </th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
           </thead>
           <tbody>
             {members.map((member) => {
@@ -110,6 +171,11 @@ export function ConsentActionsPanel({
               const isOptedIn = consent?.opted_in ?? false;
               return (
                 <tr key={member.member_jid}>
+                  <td>
+                    {phone && !isOptedIn && (
+                      <input type="checkbox" checked={selected.has(phone)} onChange={() => toggleSelected(phone)} />
+                    )}
+                  </td>
                   <td>{member.display_name ?? '—'}</td>
                   <td>{phone ?? '—'}</td>
                   <td>
