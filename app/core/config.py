@@ -23,7 +23,9 @@ class Settings(BaseSettings):
     whatsapp_internal_base_url: str = "http://127.0.0.1:8000"
     whatsapp_bridge_control_url: str = "http://127.0.0.1:8801"
     whatsapp_bridge_control_token: str = "change-me-control-token"
-    whatsapp_use_pairing_code: bool = True
+    # QR-code linking is the reliable path (verified against a live connection); pairing-code
+    # linking has been unreliable against WhatsApp's current servers -- see bridge_process.py.
+    whatsapp_use_pairing_code: bool = False
     whatsapp_phone_number: str = ""
     baileys_project_dir: str = "whatsapp_bridge"
     baileys_auth_dir: str = "whatsapp_bridge/baileys_auth_info"

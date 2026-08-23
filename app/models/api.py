@@ -21,6 +21,11 @@ class PairingCodeResponse(BaseModel):
     pairing_code: str
 
 
+class QrCodeResponse(BaseModel):
+    qr_data_url: str
+    generated_at: int
+
+
 class ConsentRequestBody(BaseModel):
     prompt_text: Optional[str] = None
 

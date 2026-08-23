@@ -14,7 +14,8 @@ export const config = {
   authDir: required('BAILEYS_AUTH_DIR', 'baileys_auth_info'),
   logLevel: process.env.BAILEYS_LOG_LEVEL ?? 'info',
   logDir: process.env.BAILEYS_LOG_DIR ?? 'logs',
-  usePairingCode: (process.env.WHATSAPP_USE_PAIRING_CODE ?? 'true') === 'true',
+  usePairingCode: (process.env.WHATSAPP_USE_PAIRING_CODE ?? 'false') === 'true',
   phoneNumber: process.env.WHATSAPP_PHONE_NUMBER ?? '',
   pairingCodeFile: process.env.PAIRING_CODE_FILE ?? '.pairing-code.json',
+  qrCodeFile: process.env.QR_CODE_FILE ?? '.qr-code.json',
 };

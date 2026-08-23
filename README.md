@@ -1,6 +1,6 @@
 # wp-bot
 
-A WhatsApp community dashboard for a business's own groups: live pairing-code login, a poll
+A WhatsApp community dashboard for a business's own groups: live QR-code login, a poll
 viewer with voter breakdown, consent-gated group contact export, keyword search across
 messages, and CSV batch propensity scoring. Successor to
 [`poison-br09/whatsapp-propensity-scoring`](https://github.com/poison-br09/whatsapp-propensity-scoring),

@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 PAIRING_CODE_TIMEOUT_SECONDS = 45
 PAIRING_CODE_POLL_INTERVAL_SECONDS = 0.5
+QR_CODE_TIMEOUT_SECONDS = 20
+QR_CODE_POLL_INTERVAL_SECONDS = 0.5
 
 
 class BridgeProcessManager:
@@ -41,6 +43,10 @@ class BridgeProcessManager:
     def pairing_code_file(self) -> Path:
         return self.project_dir / ".pairing-code.json"
 
+    @property
+    def qr_code_file(self) -> Path:
+        return self.project_dir / ".qr-code.json"
+
     def _build_env(self, pairing_phone_number: Optional[str] = None) -> dict:
         env = os.environ.copy()
         env.update(
@@ -52,6 +58,7 @@ class BridgeProcessManager:
                 "BAILEYS_LOG_LEVEL": self._settings.baileys_log_level,
                 "BAILEYS_LOG_DIR": str(self._settings.baileys_log_path),
                 "PAIRING_CODE_FILE": str(self.pairing_code_file),
+                "QR_CODE_FILE": str(self.qr_code_file),
             }
         )
         if pairing_phone_number:
@@ -100,6 +107,8 @@ class BridgeProcessManager:
             shutil.rmtree(self.auth_dir)
         if self.pairing_code_file.exists():
             self.pairing_code_file.unlink()
+        if self.qr_code_file.exists():
+            self.qr_code_file.unlink()
 
     async def request_pairing_code(self, phone_number: str) -> str:
         """Reset any existing session, start the bridge in pairing mode, wait for the pairing code."""
@@ -125,6 +134,40 @@ class BridgeProcessManager:
             elapsed += PAIRING_CODE_POLL_INTERVAL_SECONDS
 
         raise TimeoutError("Timed out waiting for the bridge to generate a pairing code")
+
+    async def start_qr_session(self) -> str:
+        """Reset any existing session, start the bridge fresh in QR mode, wait for the first QR.
+
+        QR-code linking is the reliable path here: pairing-code linking (request_pairing_code
+        above) reliably gets a code back from WhatsApp but the session is then rejected within
+        seconds (verified against a live connection -- a plain QR-mode connection with no
+        pairing-code request stays open indefinitely with no such rejection). The QR itself
+        rotates roughly every 20s while unscanned; callers should keep polling get_qr_code()
+        for a newer generated_at rather than treating the first one as final.
+        """
+        self.reset_session()
+        self.start()
+        get_session_state().status = ConnectionStatus.PAIRING
+
+        elapsed = 0.0
+        while elapsed < QR_CODE_TIMEOUT_SECONDS:
+            qr = self.get_qr_code()
+            if qr:
+                return qr["qr_data_url"]
+            await asyncio.sleep(QR_CODE_POLL_INTERVAL_SECONDS)
+            elapsed += QR_CODE_POLL_INTERVAL_SECONDS
+
+        raise TimeoutError("Timed out waiting for the bridge to generate a QR code")
+
+    def get_qr_code(self) -> Optional[dict]:
+        if not self.qr_code_file.exists():
+            return None
+        try:
+            import json
+
+            return json.loads(self.qr_code_file.read_text())
+        except (json.JSONDecodeError, OSError):
+            return None
 
 
 _manager: Optional[BridgeProcessManager] = None

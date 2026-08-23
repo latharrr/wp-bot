@@ -8,6 +8,7 @@ import makeWASocket, {
   type WASocket,
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
+import QRCode from 'qrcode';
 
 import { config } from './src/config.js';
 import { startControlServer } from './src/http/controlServer.js';
@@ -29,6 +30,12 @@ function writePairingCode(code: string): void {
   writeFileSync(config.pairingCodeFile, JSON.stringify({ code, generated_at: Date.now() }));
 }
 
+async function writeQrCode(qr: string): Promise<void> {
+  const dataUrl = await QRCode.toDataURL(qr, { width: 320, margin: 1 });
+  mkdirSync(dirname(config.qrCodeFile), { recursive: true });
+  writeFileSync(config.qrCodeFile, JSON.stringify({ qr_data_url: dataUrl, generated_at: Date.now() }));
+}
+
 async function refreshGroups(): Promise<void> {
   if (sock) await syncAllGroups(sock);
 }
@@ -41,7 +48,6 @@ async function start(): Promise<void> {
     version,
     auth: state,
     logger,
-    printQRInTerminal: !config.usePairingCode,
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -58,7 +64,12 @@ async function start(): Promise<void> {
   }
 
   sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      await writeQrCode(qr);
+      console.log('New QR code written for scanning');
+    }
 
     if (connection === 'connecting') {
       await internalClient.sessionEvent({ event: 'connecting' });
@@ -84,6 +95,12 @@ async function start(): Promise<void> {
         return;
       }
       console.warn('Connection closed, reconnecting...', statusCode);
+      // Reconnecting immediately (0ms gap) leaves WhatsApp's server-side session state for this
+      // connection mid-settle -- especially right after a pairing-code request, where a close is
+      // an expected part of the handshake. Racing back in without a beat corrupts the next
+      // frame's noise-protocol decryption (throws "Connection Failure" in decodeFrame) instead of
+      // completing the handshake cleanly.
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       await start();
     }
   });
