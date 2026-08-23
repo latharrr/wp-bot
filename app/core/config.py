@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     def baileys_project_path(self) -> Path:
         return Path(self.baileys_project_dir).resolve()
 
+    @property
+    def baileys_log_path(self) -> Path:
+        return Path(self.baileys_log_dir).resolve()
+
 
 @lru_cache
 def get_settings() -> Settings:

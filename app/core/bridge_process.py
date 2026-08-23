@@ -50,7 +50,7 @@ class BridgeProcessManager:
                 "WHATSAPP_BRIDGE_CONTROL_TOKEN": self._settings.whatsapp_bridge_control_token,
                 "BAILEYS_AUTH_DIR": str(self.auth_dir),
                 "BAILEYS_LOG_LEVEL": self._settings.baileys_log_level,
-                "BAILEYS_LOG_DIR": self._settings.baileys_log_dir,
+                "BAILEYS_LOG_DIR": str(self._settings.baileys_log_path),
                 "PAIRING_CODE_FILE": str(self.pairing_code_file),
             }
         )
