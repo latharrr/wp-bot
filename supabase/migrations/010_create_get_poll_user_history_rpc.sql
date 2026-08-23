@@ -17,13 +17,13 @@ stable
 as $$
     select
         m.mobile,
-        coalesce(m.total_purchases, 0),
-        m.last_purchase_date,
-        coalesce(m.purchases_last_30_days, 0),
-        coalesce(m.purchases_last_60_days, 0),
-        coalesce(m.total_yes_votes, 0),
-        m.last_vote_converted,
-        m.n_2_vote_converted
+        coalesce(history.total_purchases, 0),
+        history.last_purchase_date,
+        coalesce(history.purchases_last_30_days, 0),
+        coalesce(history.purchases_last_60_days, 0),
+        coalesce(history.total_yes_votes, 0),
+        history.last_vote_converted,
+        history.n_2_vote_converted
     from unnest(mobiles) as m(mobile)
     left join lateral (
         select
