@@ -5,6 +5,8 @@ RUN npm install
 
 FROM node:20-slim AS build
 WORKDIR /srv
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 COPY --from=deps /srv/node_modules ./node_modules
 COPY . .
 RUN npm run build

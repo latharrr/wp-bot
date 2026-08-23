@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from app.core.supabase_client import get_supabase
-from app.models.group import GroupMemberRecord, GroupRecord
+from app.models.group import GroupMemberRecord
 
 
 class SupabaseGroupRepository:

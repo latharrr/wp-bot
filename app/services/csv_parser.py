@@ -16,7 +16,7 @@ def parse_poll_csv(raw_bytes: bytes) -> pd.DataFrame:
 
     df["mobile"] = df["mobile"].astype(str).str.strip()
     df["vote"] = df["vote"].astype(str).str.strip().str.lower()
-    df["poll_date"] = pd.to_datetime(df["poll_date"]).dt.date
+    df["poll_date"] = pd.to_datetime(df["poll_date"].astype(str).str.strip(), format="mixed").dt.date
     return df
 
 

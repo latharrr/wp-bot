@@ -4,7 +4,7 @@ Updated exclusively by the internal /session-event webhook (app/api/internal/rou
 and read by the dashboard-facing /session/status endpoint. Process-local by design: there is only
 ever one bridge subprocess per API process, same assumption the reference repo makes.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional

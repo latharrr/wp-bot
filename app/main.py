@@ -35,6 +35,7 @@ def create_app() -> FastAPI:
         allow_origins=["*"],
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["Content-Disposition", "X-Above-Threshold-Count", "X-Row-Count"],
     )
 
     app.include_router(auth.router, prefix="/api/v1")

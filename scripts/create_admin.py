@@ -1,7 +1,7 @@
 """One-off bootstrap for the single dashboard operator account.
 
 Usage:
-    ppvenv/bin/python scripts/create_admin.py <username> <password>
+    .venv/bin/python scripts/create_admin.py <username> <password>
 """
 import sys
 from pathlib import Path

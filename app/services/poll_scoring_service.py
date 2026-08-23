@@ -1,8 +1,6 @@
 """Batch CSV propensity scoring, ported from the reference repo's poll_scoring_service.py."""
 import io
 
-import pandas as pd
-
 from app.repositories.supabase_poll_repository import SupabasePollRepository
 from app.services.csv_parser import parse_poll_csv
 from app.services.scoring import calculate_prediction_score
