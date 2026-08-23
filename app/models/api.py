@@ -36,3 +36,7 @@ class ManualOptInBody(BaseModel):
 
 class BulkOptInBody(BaseModel):
     phones: list[str]
+
+
+class BulkGroupActionBody(BaseModel):
+    group_jids: list[str]
