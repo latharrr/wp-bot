@@ -22,6 +22,7 @@ mkdirSync(config.authDir, { recursive: true });
 const logger = pino({ level: config.logLevel }, pino.destination(`${config.logDir}/bridge.log`));
 
 let sock: WASocket | null = null;
+let pairingCodeRequested = false;
 
 function writePairingCode(code: string): void {
   mkdirSync(dirname(config.pairingCodeFile), { recursive: true });
@@ -45,12 +46,13 @@ async function start(): Promise<void> {
 
   sock.ev.on('creds.update', saveCreds);
 
-  if (config.usePairingCode && config.phoneNumber && !sock.authState.creds.registered) {
+  if (config.usePairingCode && config.phoneNumber && !sock.authState.creds.registered && !pairingCodeRequested) {
     // requestPairingCode sends a node over the raw websocket immediately; the connection
     // isn't open yet at this point (makeWASocket only starts connecting), so without this it
     // throws "Connection Closed" every time instead of ever producing a code.
     await sock.waitForSocketOpen();
     const code = await sock.requestPairingCode(config.phoneNumber);
+    pairingCodeRequested = true;
     console.log(`Pairing code for ${config.phoneNumber}: ${code}`);
     writePairingCode(code);
   }
