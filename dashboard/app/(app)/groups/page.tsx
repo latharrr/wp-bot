@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { api, ApiError } from '@/lib/apiClient';
 import { ConsentStatusBadge } from '@/components/ConsentStatusBadge';
+import { RequireFeature } from '@/components/RequireFeature';
 
 type Group = {
   group_jid: string;
@@ -14,6 +15,14 @@ type Group = {
 };
 
 export default function GroupsPage() {
+  return (
+    <RequireFeature feature="groups">
+      <GroupsPageContent />
+    </RequireFeature>
+  );
+}
+
+function GroupsPageContent() {
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -74,13 +83,6 @@ export default function GroupsPage() {
               <div className="row" style={{ flexWrap: 'wrap' }}>
                 <button disabled={busy || selected.size === 0} onClick={() => runBulk('/api/v1/groups/bulk-mark-consented')}>
                   {busy ? 'Working...' : `Mark ${selected.size || ''} consented`}
-                </button>
-                <button
-                  className="secondary"
-                  disabled={busy || selected.size === 0}
-                  onClick={() => runBulk('/api/v1/groups/bulk-request-consent')}
-                >
-                  Request consent for selected
                 </button>
                 <button
                   className="danger"

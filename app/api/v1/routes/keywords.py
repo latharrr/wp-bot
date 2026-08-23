@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_feature
 from app.services.export_service import get_export_service
 from app.services.keyword_search_service import get_keyword_search_service
 
-router = APIRouter(prefix="/keywords", tags=["keywords"])
+router = APIRouter(prefix="/keywords", tags=["keywords"], dependencies=[Depends(require_feature("keyword_search"))])
 
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 

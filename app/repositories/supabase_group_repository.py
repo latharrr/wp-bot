@@ -95,8 +95,3 @@ class SupabaseGroupRepository:
         self._client.table("group_consent_log").insert(
             {"group_jid": group_jid, "action": action, "actor": actor}
         ).execute()
-
-    def log_consent_requested(self, group_jid: str, actor: str) -> None:
-        self._client.table("group_consent_log").insert(
-            {"group_jid": group_jid, "action": "requested", "actor": actor}
-        ).execute()

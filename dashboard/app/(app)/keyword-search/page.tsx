@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '@/lib/apiClient';
 import { ExportButton } from '@/components/ExportButton';
+import { RequireFeature } from '@/components/RequireFeature';
 
 type SearchResult = {
   keyword: string;
@@ -11,6 +12,14 @@ type SearchResult = {
 };
 
 export default function KeywordSearchPage() {
+  return (
+    <RequireFeature feature="keyword_search">
+      <KeywordSearchPageContent />
+    </RequireFeature>
+  );
+}
+
+function KeywordSearchPageContent() {
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<SearchResult | null>(null);
   const [recent, setRecent] = useState<{ keyword: string }[]>([]);

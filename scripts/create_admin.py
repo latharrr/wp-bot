@@ -1,4 +1,6 @@
-"""One-off bootstrap for the single dashboard operator account.
+"""One-off bootstrap for the super admin account. This is the only user created outside the
+dashboard -- the super admin then creates every other ('user'-role) account from the Admin page,
+choosing which features each one can see.
 
 Usage:
     .venv/bin/python scripts/create_admin.py <username> <password>
@@ -20,11 +22,11 @@ def main() -> None:
     username, password = sys.argv[1], sys.argv[2]
     repo = SupabaseAdminRepository()
     if repo.get_by_username(username):
-        print(f"Admin user '{username}' already exists")
+        print(f"User '{username}' already exists")
         raise SystemExit(1)
 
-    repo.create(username, hash_password(password))
-    print(f"Created admin user '{username}'")
+    repo.create(username, hash_password(password), role="super_admin")
+    print(f"Created super admin '{username}'")
 
 
 if __name__ == "__main__":

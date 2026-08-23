@@ -3,28 +3,37 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { clearToken } from '@/lib/auth';
+import { hasFeature, useCurrentUser } from '@/lib/useCurrentUser';
 
 const LINKS = [
-  { href: '/', label: 'Connection' },
-  { href: '/groups', label: 'Groups' },
-  { href: '/keyword-search', label: 'Keyword Search' },
-  { href: '/scoring', label: 'CSV Scoring' },
-  { href: '/exports', label: 'Export Log' },
+  { href: '/', label: 'Connection', feature: 'connection' },
+  { href: '/groups', label: 'Groups', feature: 'groups' },
+  { href: '/keyword-search', label: 'Keyword Search', feature: 'keyword_search' },
+  { href: '/scoring', label: 'CSV Scoring', feature: 'csv_scoring' },
+  { href: '/exports', label: 'Export Log', feature: 'export_log' },
 ];
 
 export function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useCurrentUser();
+
+  const links = LINKS.filter((link) => hasFeature(user, link.feature));
 
   return (
     <aside className="sidebar">
       <h1>wp-bot</h1>
       <nav>
-        {LINKS.map((link) => (
+        {links.map((link) => (
           <Link key={link.href} href={link.href} style={pathname === link.href ? { background: 'var(--panel)', fontWeight: 600 } : undefined}>
             {link.label}
           </Link>
         ))}
+        {user?.role === 'super_admin' && (
+          <Link href="/admin" style={pathname === '/admin' ? { background: 'var(--panel)', fontWeight: 600 } : undefined}>
+            Admin
+          </Link>
+        )}
         <button
           className="secondary"
           style={{ marginTop: 20 }}

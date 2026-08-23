@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
+import { RequireFeature } from '@/components/RequireFeature';
 
 type ExportLogEntry = {
   actor: string;
@@ -14,6 +15,14 @@ type ExportLogEntry = {
 };
 
 export default function ExportsPage() {
+  return (
+    <RequireFeature feature="export_log">
+      <ExportsPageContent />
+    </RequireFeature>
+  );
+}
+
+function ExportsPageContent() {
   const [entries, setEntries] = useState<ExportLogEntry[] | null>(null);
 
   useEffect(() => {

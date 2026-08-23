@@ -3,8 +3,17 @@
 import { use, useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { PollVoterTable } from '@/components/PollVoterTable';
+import { RequireFeature } from '@/components/RequireFeature';
 
 export default function PollDetailPage({ params }: { params: Promise<{ groupJid: string; pollId: string }> }) {
+  return (
+    <RequireFeature feature="groups">
+      <PollDetailPageContent params={params} />
+    </RequireFeature>
+  );
+}
+
+function PollDetailPageContent({ params }: { params: Promise<{ groupJid: string; pollId: string }> }) {
   const { groupJid: encodedGroupJid, pollId: encodedPollId } = use(params);
   const groupJid = decodeURIComponent(encodedGroupJid);
   const pollMessageId = decodeURIComponent(encodedPollId);

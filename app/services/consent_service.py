@@ -8,31 +8,17 @@ the *workflow* (request -> opt-in -> mark consented -> revoke), the views are th
 import logging
 from typing import Optional
 
-from app.core.bridge_control_client import get_bridge_control_client
-from app.models.consent import ConsentPromptRecord, MemberConsentRecord
+from app.models.consent import MemberConsentRecord
 from app.repositories.supabase_consent_repository import SupabaseConsentRepository
 from app.repositories.supabase_group_repository import SupabaseGroupRepository
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_PROMPT_TEMPLATE = (
-    "Hi! We'd like to keep a record of your number and messages you send in this group for our "
-    "own records and analytics. Reply YES or react ✅ to this message to agree. "
-    "You can opt out any time by messaging us."
-)
 
 
 class ConsentService:
     def __init__(self) -> None:
         self._groups = SupabaseGroupRepository()
         self._consent = SupabaseConsentRepository()
-
-    async def request_consent(self, group_jid: str, actor: str, prompt_text: Optional[str] = None) -> str:
-        text = prompt_text or DEFAULT_PROMPT_TEMPLATE
-        message_id = await get_bridge_control_client().send_message(group_jid, text)
-        self._consent.create_prompt(ConsentPromptRecord(group_jid=group_jid, message_id=message_id, prompt_text=text))
-        self._groups.log_consent_requested(group_jid, actor)
-        return message_id
 
     def mark_group_consented(self, group_jid: str, actor: str) -> None:
         self._groups.set_consent_status(group_jid, "consented", actor)

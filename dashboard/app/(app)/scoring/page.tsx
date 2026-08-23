@@ -2,10 +2,19 @@
 
 import { useState, type ChangeEvent } from 'react';
 import { getToken } from '@/lib/auth';
+import { RequireFeature } from '@/components/RequireFeature';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000';
 
 export default function ScoringPage() {
+  return (
+    <RequireFeature feature="csv_scoring">
+      <ScoringPageContent />
+    </RequireFeature>
+  );
+}
+
+function ScoringPageContent() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_feature
 from app.repositories.supabase_group_repository import SupabaseGroupRepository
 from app.services.export_service import get_export_service
 
-router = APIRouter(prefix="/groups/{group_jid}/contacts", tags=["contacts"])
+router = APIRouter(
+    prefix="/groups/{group_jid}/contacts", tags=["contacts"], dependencies=[Depends(require_feature("groups"))]
+)
 
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 

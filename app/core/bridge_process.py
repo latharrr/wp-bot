@@ -1,10 +1,8 @@
 """Spawns and controls the Node/TypeScript Baileys bridge subprocess.
 
 Mirrors the process-management pattern from the reference repo's BaileysBridgeProcessManager:
-FastAPI's lifespan starts the bridge, injects config via env vars, and a pairing-code request
-resets any existing session before starting a fresh pairing-mode run. The one addition here is a
-loopback HTTP "control" call to the bridge (see bridge_control_client.py) used to ask the running
-bridge to post a consent-prompt message into a group.
+FastAPI's lifespan starts the bridge, injects config via env vars, and a pairing-code (or QR)
+request resets any existing session before starting a fresh run.
 """
 import asyncio
 import logging

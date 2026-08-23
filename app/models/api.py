@@ -26,8 +26,20 @@ class QrCodeResponse(BaseModel):
     generated_at: int
 
 
-class ConsentRequestBody(BaseModel):
-    prompt_text: Optional[str] = None
+class MeResponse(BaseModel):
+    username: str
+    role: str
+    allowed_features: list[str]
+
+
+class CreateUserRequest(BaseModel):
+    username: str
+    password: str
+    allowed_features: list[str] = []
+
+
+class UpdateUserFeaturesRequest(BaseModel):
+    allowed_features: list[str]
 
 
 class ManualOptInBody(BaseModel):

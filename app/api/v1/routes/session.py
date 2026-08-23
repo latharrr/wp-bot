@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_feature
 from app.core.bridge_process import get_bridge_manager
 from app.models.api import PairingCodeRequest, PairingCodeResponse, QrCodeResponse
 from app.services.whatsapp_session_state import get_session_state
 
-router = APIRouter(prefix="/session", tags=["session"])
+router = APIRouter(prefix="/session", tags=["session"], dependencies=[Depends(require_feature("connection"))])
 
 
 @router.get("/status")

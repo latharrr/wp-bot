@@ -5,11 +5,20 @@ import { api } from '@/lib/apiClient';
 import { ConsentActionsPanel } from '@/components/ConsentActionsPanel';
 import { ContactsTable } from '@/components/ContactsTable';
 import { PollsList } from '@/components/PollsList';
+import { RequireFeature } from '@/components/RequireFeature';
 
 type Group = { group_jid: string; group_name: string | null; consent_status: string };
 type Tab = 'overview' | 'contacts' | 'polls';
 
 export default function GroupDetailPage({ params }: { params: Promise<{ groupJid: string }> }) {
+  return (
+    <RequireFeature feature="groups">
+      <GroupDetailPageContent params={params} />
+    </RequireFeature>
+  );
+}
+
+function GroupDetailPageContent({ params }: { params: Promise<{ groupJid: string }> }) {
   const { groupJid: encodedGroupJid } = use(params);
   const groupJid = decodeURIComponent(encodedGroupJid);
 

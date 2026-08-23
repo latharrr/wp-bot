@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import Response
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, require_feature
 from app.services.poll_scoring_service import get_poll_scoring_service
 
-router = APIRouter(prefix="/polls", tags=["scoring"])
+router = APIRouter(prefix="/polls", tags=["scoring"], dependencies=[Depends(require_feature("csv_scoring"))])
 
 
 @router.post("/score")

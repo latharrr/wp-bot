@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { PairingModal } from '@/components/PairingModal';
 import { ConnectionStatusBadge } from '@/components/ConnectionStatusBadge';
+import { RequireFeature } from '@/components/RequireFeature';
 
 type SessionStatus = {
   status: string;
@@ -14,6 +15,14 @@ type SessionStatus = {
 };
 
 export default function ConnectionPage() {
+  return (
+    <RequireFeature feature="connection">
+      <ConnectionPageContent />
+    </RequireFeature>
+  );
+}
+
+function ConnectionPageContent() {
   const [session, setSession] = useState<SessionStatus | null>(null);
 
   async function refresh() {

@@ -110,15 +110,6 @@ export function ConsentActionsPanel({
           {consentStatus !== 'consented' && (
             <button
               disabled={busy}
-              onClick={() => run(() => api.post(`/api/v1/groups/${encodeURIComponent(groupJid)}/consent/request`, {}))}
-            >
-              Request consent
-            </button>
-          )}
-          {consentStatus !== 'consented' && (
-            <button
-              className="secondary"
-              disabled={busy}
               onClick={() => run(() => api.post(`/api/v1/groups/${encodeURIComponent(groupJid)}/consent/mark-consented`, {}))}
             >
               Mark consented

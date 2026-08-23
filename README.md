@@ -11,8 +11,8 @@ carrying forward its bridge/scoring pipeline and adding a dashboard on top.
 Contact and keyword-match data for a person is only ever exportable when **both**:
 
 1. The **group** has been explicitly marked "consented" by the operator in the dashboard, and
-2. That **individual member** has separately opted in (replying/reacting to a consent-prompt
-   message the bot posts, or a manual admin override for verbal consent).
+2. That **individual member** has separately opted in — via a manual admin override for verbal
+   consent (single or bulk, from the group's Overview tab).
 
 Both gates are enforced in the database itself via the `exportable_contacts` and
 `exportable_keyword_matches` views (`supabase/migrations/016_create_exportable_views.sql`) — the
@@ -21,6 +21,23 @@ raw `group_members` / `keyword_match` tables. Do not add a code path that bypass
 
 Poll voter breakdowns use the group-level gate only (poll votes are already visible to everyone
 in the group natively); non-consented groups only ever get aggregate counts, never named voters.
+
+## Users and roles
+
+There are two roles:
+
+- **super_admin** — one account, created via `scripts/create_admin.py` (never through the
+  dashboard). Sees every feature and manages other users from the **Admin** page: create a
+  user, delete a user, and toggle which features (`connection`, `groups`, `keyword_search`,
+  `csv_scoring`, `export_log`) they can see.
+- **user** — created by the super_admin, sees only the features granted to them. Both the
+  dashboard nav and every API route enforce this independently (`app/api/deps.py`'s
+  `require_feature(...)`, applied per-router) — hiding a nav link is a UX nicety, not the
+  actual security boundary.
+
+Feature grants take effect on a user's very next request, not after their token expires:
+`get_current_user` looks the account back up by username on every request rather than trusting
+role/features baked into the JWT.
 
 ## Requirements
 
@@ -36,7 +53,9 @@ in the group natively); non-consented groups only ever get aggregate counts, nev
 3. Install Python deps: `python3.11 -m venv .venv && .venv/bin/pip install -e ".[dev]"`
 4. Install bridge deps: `cd whatsapp_bridge && npm install && cd ..`
 5. Install dashboard deps: `cd dashboard && npm install && cd ..`
-6. Create the operator account: `.venv/bin/python scripts/create_admin.py <username> <password>`
+6. Create the super admin account: `.venv/bin/python scripts/create_admin.py <username> <password>`
+   — this is the only account created outside the dashboard; create everyone else from its
+   Admin page.
 
 ## Run locally
 
@@ -59,8 +78,8 @@ docker compose up --build
 
 ## Architecture
 
-- `app/` — FastAPI backend: auth, groups, consent workflow, poll ingestion, CSV scoring,
-  keyword search, exports.
+- `app/` — FastAPI backend: auth, roles/feature access, groups, consent workflow, poll
+  ingestion, CSV scoring, keyword search, exports.
 - `whatsapp_bridge/` — Node/TypeScript Baileys process the API manages as a subprocess; handles
   pairing, group/contact sync, poll detection, message/reaction forwarding.
 - `dashboard/` — Next.js operator dashboard.

@@ -1,16 +1,12 @@
 from fastapi import APIRouter, Depends
 
-from app.api.deps import get_current_admin
-from app.models.api import BulkOptInBody, ConsentRequestBody, ManualOptInBody
+from app.api.deps import get_current_admin, require_feature
+from app.models.api import BulkOptInBody, ManualOptInBody
 from app.services.consent_service import get_consent_service
 
-router = APIRouter(prefix="/groups/{group_jid}/consent", tags=["consent"])
-
-
-@router.post("/request")
-async def request_consent(group_jid: str, body: ConsentRequestBody, actor: str = Depends(get_current_admin)) -> dict:
-    message_id = await get_consent_service().request_consent(group_jid, actor, body.prompt_text)
-    return {"message_id": message_id}
+router = APIRouter(
+    prefix="/groups/{group_jid}/consent", tags=["consent"], dependencies=[Depends(require_feature("groups"))]
+)
 
 
 @router.get("/members")
