@@ -4,6 +4,12 @@ import { useState } from 'react';
 import { api, ApiError } from '@/lib/apiClient';
 import { ConsentStatusBadge } from '@/components/ConsentStatusBadge';
 
+type Member = {
+  member_jid: string;
+  phone: string | null;
+  display_name: string | null;
+};
+
 type MemberConsent = {
   member_phone: string;
   opted_in: boolean;
@@ -13,17 +19,20 @@ type MemberConsent = {
 export function ConsentActionsPanel({
   groupJid,
   consentStatus,
+  members,
   memberConsent,
   onChanged,
 }: {
   groupJid: string;
   consentStatus: string;
+  members: Member[];
   memberConsent: MemberConsent[];
   onChanged: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const consentByPhone = new Map(memberConsent.map((m) => [m.member_phone, m]));
   const optedInCount = memberConsent.filter((m) => m.opted_in).length;
 
   async function run(fn: () => Promise<unknown>) {
@@ -37,6 +46,18 @@ export function ConsentActionsPanel({
     } finally {
       setBusy(false);
     }
+  }
+
+  function optIn(phone: string) {
+    run(() =>
+      api.post(`/api/v1/groups/${encodeURIComponent(groupJid)}/consent/members/${encodeURIComponent(phone)}/opt-in`, {
+        reason: 'manual admin override (verbal consent)',
+      }),
+    );
+  }
+
+  function optOut(phone: string) {
+    run(() => api.post(`/api/v1/groups/${encodeURIComponent(groupJid)}/consent/members/${encodeURIComponent(phone)}/opt-out`, {}));
   }
 
   return (
@@ -77,19 +98,37 @@ export function ConsentActionsPanel({
       </div>
       {error && <div className="error">{error}</div>}
 
-      {memberConsent.length > 0 && (
+      {members.length > 0 && (
         <table style={{ marginTop: 14 }}>
           <thead>
-            <tr><th>Phone</th><th>Status</th><th>Method</th></tr>
+            <tr><th>Name</th><th>Phone</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
-            {memberConsent.map((m) => (
-              <tr key={m.member_phone}>
-                <td>{m.member_phone}</td>
-                <td>{m.opted_in ? 'Opted in' : 'Opted out'}</td>
-                <td className="muted">{m.opt_in_method}</td>
-              </tr>
-            ))}
+            {members.map((member) => {
+              const phone = member.phone;
+              const consent = phone ? consentByPhone.get(phone) : undefined;
+              const isOptedIn = consent?.opted_in ?? false;
+              return (
+                <tr key={member.member_jid}>
+                  <td>{member.display_name ?? '—'}</td>
+                  <td>{phone ?? '—'}</td>
+                  <td>
+                    {isOptedIn
+                      ? `Opted in (${consent?.opt_in_method})`
+                      : consent
+                        ? 'Opted out'
+                        : 'No response yet'}
+                  </td>
+                  <td>
+                    {!phone ? null : isOptedIn ? (
+                      <button className="secondary" disabled={busy} onClick={() => optOut(phone)}>Opt out</button>
+                    ) : (
+                      <button className="secondary" disabled={busy} onClick={() => optIn(phone)}>Opt in (verbal)</button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

@@ -15,16 +15,19 @@ export default function GroupDetailPage({ params }: { params: Promise<{ groupJid
 
   const [tab, setTab] = useState<Tab>('overview');
   const [group, setGroup] = useState<Group | null>(null);
+  const [members, setMembers] = useState<any[]>([]);
   const [memberConsent, setMemberConsent] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any>(null);
   const [polls, setPolls] = useState<any[] | null>(null);
 
   async function loadOverview() {
-    const [g, mc] = await Promise.all([
+    const [g, m, mc] = await Promise.all([
       api.get<Group>(`/api/v1/groups/${encodeURIComponent(groupJid)}`),
+      api.get<any[]>(`/api/v1/groups/${encodeURIComponent(groupJid)}/members`),
       api.get<any[]>(`/api/v1/groups/${encodeURIComponent(groupJid)}/consent/members`),
     ]);
     setGroup(g);
+    setMembers(m);
     setMemberConsent(mc);
   }
 
@@ -52,6 +55,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ groupJid
         <ConsentActionsPanel
           groupJid={groupJid}
           consentStatus={group.consent_status}
+          members={members}
           memberConsent={memberConsent}
           onChanged={loadOverview}
         />
