@@ -118,7 +118,7 @@ async function start(): Promise<void> {
   sock.ev.on('messages.reaction', async (reactions) => {
     for (const r of reactions) {
       try {
-        await handleReaction(r.reaction, r.key.remoteJid);
+        await handleReaction(r.reaction, r.key.remoteJid, r.key.participant, r.key.participantAlt);
       } catch (err) {
         console.error('Failed to handle reaction:', err);
       }

@@ -11,7 +11,11 @@ export async function syncAllGroups(sock: WASocket): Promise<void> {
     subject: meta.subject,
     participants: meta.participants.map((p) => ({
       jid: p.id,
-      phone: phoneFromJid(p.id),
+      // In groups using @lid (privacy) addressing, p.id is an anonymized linked ID, not a
+      // real dialable number -- Baileys separately resolves the real number to phoneNumber
+      // (an @s.whatsapp.net JID) when it's known. Fall back to p.id for ordinary groups where
+      // it's already the phone-number JID and phoneNumber is unset.
+      phone: phoneFromJid(p.phoneNumber ?? p.id),
       display_name: p.notify ?? null,
       is_admin: p.admin === 'admin' || p.admin === 'superadmin',
     })),
@@ -33,7 +37,7 @@ export async function syncOneGroup(sock: WASocket, groupJid: string): Promise<vo
           subject: meta.subject,
           participants: meta.participants.map((p) => ({
             jid: p.id,
-            phone: phoneFromJid(p.id),
+            phone: phoneFromJid(p.phoneNumber ?? p.id),
             display_name: p.notify ?? null,
             is_admin: p.admin === 'admin' || p.admin === 'superadmin',
           })),
