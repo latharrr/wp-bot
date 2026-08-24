@@ -81,8 +81,8 @@ class SupabaseKeywordRepository:
 
     def search_messages_ilike(self, keyword: str, limit: int = 500) -> list[dict]:
         """Retroactive search over the full message store -- used to backfill keyword_match
-        for terms searched after the fact, not to serve exports directly (those read the
-        exportable_keyword_matches view instead, see migration 016)."""
+        for terms searched after the fact, not to serve results directly (see
+        list_matches_in_consented_groups for that)."""
         response = (
             self._client.table("messages")
             .select("*")
@@ -94,10 +94,32 @@ class SupabaseKeywordRepository:
         return response.data or []
 
     def list_exportable_matches(self, keyword: str) -> list[dict]:
+        """The strict double-gate (group consent AND individual opt-in) -- kept for anything
+        that still needs it, but keyword search itself now uses
+        list_matches_in_consented_groups (see that method's docstring for why)."""
         response = (
             self._client.table("exportable_keyword_matches")
             .select("*")
             .ilike("keyword", keyword)
+            .order("message_date", desc=True)
+            .execute()
+        )
+        return response.data or []
+
+    def list_matches_in_consented_groups(self, keyword: str, consented_group_jids: list[str]) -> list[dict]:
+        """Group-consent-only gate for keyword matches, deliberately chosen to match the same
+        precedent poll voter breakdowns already use ("this content is already visible to
+        everyone in the group natively; the group's own consent is what authorizes recording/
+        monitoring it, not each member's individual opt-in"). Contacts remains the stricter
+        double-gate since building an external outreach list is a materially different action
+        than viewing conversation content."""
+        if not consented_group_jids:
+            return []
+        response = (
+            self._client.table("keyword_match")
+            .select("keyword,group_jid,sender_jid,sender_name,sender_phone,message,message_id,message_date")
+            .ilike("keyword", keyword)
+            .in_("group_jid", consented_group_jids)
             .order("message_date", desc=True)
             .execute()
         )
@@ -110,4 +132,22 @@ class SupabaseKeywordRepository:
             .ilike("keyword", keyword)
             .execute()
         )
+        return response.count or 0
+
+    def list_messages_for_group(self, group_jid: str, page: int, page_size: int) -> tuple[list[dict], int]:
+        """Backing the group Messages monitor -- only called once the caller has already
+        confirmed the group is consented (same pattern as poll voter breakdowns)."""
+        start = (page - 1) * page_size
+        response = (
+            self._client.table("messages")
+            .select("sender_jid,sender_phone,sender_name,message_text,sent_at", count="exact")
+            .eq("group_jid", group_jid)
+            .order("sent_at", desc=True)
+            .range(start, start + page_size - 1)
+            .execute()
+        )
+        return response.data or [], response.count or 0
+
+    def count_messages_for_group(self, group_jid: str) -> int:
+        response = self._client.table("messages").select("id", count="exact").eq("group_jid", group_jid).execute()
         return response.count or 0

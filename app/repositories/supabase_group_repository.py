@@ -54,6 +54,12 @@ class SupabaseGroupRepository:
         )
         return response.data or []
 
+    def list_consented_groups(self) -> list[dict]:
+        response = (
+            self._client.table("groups").select("group_jid,group_name").eq("consent_status", "consented").execute()
+        )
+        return response.data or []
+
     def get_member_phone(self, group_jid: str, member_jid: str) -> str | None:
         """The authoritative phone for a member identity, resolved once via groupMetadata's
         phoneNumber field (see whatsapp_bridge/src/handlers/groups.ts) and stored here. Message

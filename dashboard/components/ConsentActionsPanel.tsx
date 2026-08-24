@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { api, ApiError } from '@/lib/apiClient';
 import { ConsentStatusBadge } from '@/components/ConsentStatusBadge';
+import { OnboardingTip } from '@/components/OnboardingTip';
 
 type Member = {
   member_jid: string;
@@ -127,6 +128,16 @@ export function ConsentActionsPanel({
         </div>
       </div>
       {error && <div className="error">{error}</div>}
+
+      {members.length > 0 && (
+        <OnboardingTip id="consent-bulk-verbal-optin">
+          <strong>Opting in members:</strong> once you&apos;ve told the group out loud that you&apos;re
+          collecting names/numbers and they&apos;re okay with it, tick the checkbox in the header row of
+          the table below to select everyone at once, then hit the big{' '}
+          <strong>&quot;Opt in ... — verbal consent&quot;</strong> button to mark them all opted in
+          together. You can still opt people in or out one at a time using the row buttons.
+        </OnboardingTip>
+      )}
 
       {eligiblePhones.length > 0 && (
         <button

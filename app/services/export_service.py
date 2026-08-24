@@ -1,7 +1,9 @@
 """Builds .xlsx exports and writes the audit-log row. This is one of the two places (the
-other being the dashboard "detail" queries) allowed to read exportable_contacts /
-exportable_keyword_matches -- see migration 016 and supabase_group_repository /
-supabase_keyword_repository for why those views exist."""
+other being the dashboard "detail" queries) allowed to read exportable_contacts -- see
+migration 016 and supabase_group_repository for why that view exists. Keyword-match and poll
+exports use a group-consent-only gate instead (see supabase_keyword_repository's
+list_matches_in_consented_groups docstring for why that's a deliberately different, looser
+rule than contacts)."""
 import io
 from datetime import UTC, datetime
 
@@ -77,7 +79,11 @@ class ExportService:
         return content, filename
 
     def export_keyword_matches(self, keyword: str, actor: str) -> tuple[bytes, str]:
-        rows = self._keywords.list_exportable_matches(keyword)
+        consented_groups = self._groups.list_consented_groups()
+        group_names = {g["group_jid"]: g.get("group_name") for g in consented_groups}
+        rows = self._keywords.list_matches_in_consented_groups(keyword, list(group_names.keys()))
+        for row in rows:
+            row["group_name"] = group_names.get(row["group_jid"])
         content = _workbook_bytes(
             ["Keyword", "Group", "Sender Name", "Phone", "Message", "Date"],
             [

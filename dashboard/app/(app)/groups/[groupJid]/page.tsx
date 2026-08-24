@@ -4,11 +4,12 @@ import { use, useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { ConsentActionsPanel } from '@/components/ConsentActionsPanel';
 import { ContactsTable } from '@/components/ContactsTable';
+import { MessagesMonitor } from '@/components/MessagesMonitor';
 import { PollsList } from '@/components/PollsList';
 import { RequireFeature } from '@/components/RequireFeature';
 
 type Group = { group_jid: string; group_name: string | null; consent_status: string };
-type Tab = 'overview' | 'contacts' | 'polls';
+type Tab = 'overview' | 'contacts' | 'messages' | 'polls';
 
 export default function GroupDetailPage({ params }: { params: Promise<{ groupJid: string }> }) {
   return (
@@ -57,6 +58,7 @@ function GroupDetailPageContent({ params }: { params: Promise<{ groupJid: string
       <div className="tabs">
         <a className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}>Overview</a>
         <a className={tab === 'contacts' ? 'active' : ''} onClick={() => setTab('contacts')}>Contacts</a>
+        <a className={tab === 'messages' ? 'active' : ''} onClick={() => setTab('messages')}>Messages</a>
         <a className={tab === 'polls' ? 'active' : ''} onClick={() => setTab('polls')}>Polls</a>
       </div>
 
@@ -71,6 +73,8 @@ function GroupDetailPageContent({ params }: { params: Promise<{ groupJid: string
       )}
 
       {tab === 'contacts' && (contacts ? <ContactsTable groupJid={groupJid} contacts={contacts} /> : <p className="muted">Loading...</p>)}
+
+      {tab === 'messages' && <MessagesMonitor groupJid={groupJid} />}
 
       {tab === 'polls' && (
         <div className="card">

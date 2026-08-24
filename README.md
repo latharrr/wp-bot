@@ -8,19 +8,31 @@ carrying forward its bridge/scoring pipeline and adding a dashboard on top.
 
 ## Consent model (read this before deploying)
 
-Contact and keyword-match data for a person is only ever exportable when **both**:
+There are two tiers of gating, depending on what the data is being used for:
+
+**Contacts** (building an external outreach list) use the strict **double gate** — a person's
+name/phone is only ever exportable when **both**:
 
 1. The **group** has been explicitly marked "consented" by the operator in the dashboard, and
 2. That **individual member** has separately opted in — via a manual admin override for verbal
    consent (single or bulk, from the group's Overview tab).
 
-Both gates are enforced in the database itself via the `exportable_contacts` and
-`exportable_keyword_matches` views (`supabase/migrations/016_create_exportable_views.sql`) — the
-application code for every export/detail endpoint reads only from these views, never from the
-raw `group_members` / `keyword_match` tables. Do not add a code path that bypasses them.
+This gate is enforced in the database itself via the `exportable_contacts` view
+(`supabase/migrations/016_create_exportable_views.sql`) — the contacts export/detail endpoints
+read only from this view, never from the raw `group_members` table. Do not add a code path that
+bypasses it.
 
-Poll voter breakdowns use the group-level gate only (poll votes are already visible to everyone
-in the group natively); non-consented groups only ever get aggregate counts, never named voters.
+**Poll voter breakdowns, keyword-match search, and the group Messages monitor** use a looser
+**group-only gate**: once the group itself is marked consented, no per-member opt-in is required
+to see names, phone numbers, and message content for that group. The reasoning (confirmed
+explicitly by the operator): this content — who voted for what, who said what, when — is already
+visible to everyone in the group natively; the group's own consent is what authorizes recording
+and monitoring it, not each member's individual opt-in. That's a materially different action from
+compiling an external contact list, which is why contacts keeps the stricter double gate.
+Non-consented groups only ever get aggregate counts (vote tallies, hidden-match counts, total
+message counts) — never named/attributed rows. See
+`app/repositories/supabase_keyword_repository.py`'s `list_matches_in_consented_groups` docstring
+and `app/api/v1/routes/group_messages.py` for where this is implemented.
 
 ## Live propensity scoring, keyword watchlist, and automation switches
 

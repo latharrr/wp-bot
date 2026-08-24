@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { api, ApiError } from '@/lib/apiClient';
 import { ConsentStatusBadge } from '@/components/ConsentStatusBadge';
+import { OnboardingTip } from '@/components/OnboardingTip';
 import { RequireFeature } from '@/components/RequireFeature';
 
 type Group = {
@@ -73,6 +74,12 @@ function GroupsPageContent() {
     <div>
       <h2>Groups</h2>
       <p className="muted">Groups the connected WhatsApp account belongs to. Nothing is exportable until you mark a group consented.</p>
+
+      <OnboardingTip id="groups-bulk-consent">
+        <strong>New here?</strong> Tick the checkbox in the table header below to select every group at once,
+        then click <strong>&quot;Mark consented&quot;</strong> above the table to grant consent for all of
+        them in one go. Open any group afterwards to opt in its individual members.
+      </OnboardingTip>
 
       {groups && groups.length > 0 && (
         <div className="stat-grid" style={{ marginBottom: 20 }}>

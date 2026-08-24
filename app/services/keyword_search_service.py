@@ -1,9 +1,11 @@
+from app.repositories.supabase_group_repository import SupabaseGroupRepository
 from app.repositories.supabase_keyword_repository import SupabaseKeywordRepository
 
 
 class KeywordSearchService:
     def __init__(self) -> None:
         self._keywords = SupabaseKeywordRepository()
+        self._groups = SupabaseGroupRepository()
 
     def check_message_for_keywords(self, keyword_candidates: list[str], message_row: dict) -> None:
         text_lower = message_row["message_text"].lower()
@@ -24,9 +26,10 @@ class KeywordSearchService:
 
     def search(self, keyword: str) -> dict:
         """Retroactively scans the full message store for the term (catches messages sent
-        before this keyword was ever searched), backfills keyword_match, records the search
-        in keyword_watch, then returns only exportable (consent-gated) hits plus a
-        non-identifying count of how many additional hits exist but aren't consented."""
+        before this keyword was ever searched), backfills keyword_match, records the search in
+        keyword_watch, then returns hits from consented groups (group-consent-only gate -- same
+        precedent as poll voter breakdowns; see list_matches_in_consented_groups) plus a
+        non-identifying count of how many additional hits exist in non-consented groups."""
         # Normalize case so "PG" and "pg" are the same keyword_watch entry -- record_watch and
         # upsert_match key on exact string equality, not the ilike used for message matching.
         keyword = keyword.strip().lower()
@@ -38,10 +41,17 @@ class KeywordSearchService:
 
         self._keywords.record_watch(keyword)
 
-        exportable = self._keywords.list_exportable_matches(keyword)
+        consented_groups = self._groups.list_consented_groups()
+        group_names = {g["group_jid"]: g.get("group_name") for g in consented_groups}
+        consented_jids = list(group_names.keys())
+
+        matches = self._keywords.list_matches_in_consented_groups(keyword, consented_jids)
+        for match in matches:
+            match["group_name"] = group_names.get(match["group_jid"])
+
         total = self._keywords.count_all_matches(keyword)
-        hidden = max(total - len(exportable), 0)
-        return {"keyword": keyword, "results": exportable, "hidden_match_count": hidden}
+        hidden = max(total - len(matches), 0)
+        return {"keyword": keyword, "results": matches, "hidden_match_count": hidden}
 
     def recent_searches(self) -> list[dict]:
         return self._keywords.list_recent_watches()

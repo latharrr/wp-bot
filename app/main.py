@@ -13,6 +13,7 @@ from app.api.v1.routes import (
     contacts,
     exports,
     feature_toggles,
+    group_messages,
     groups,
     keywords,
     polls,
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(keywords.router, prefix="/api/v1")
     app.include_router(exports.router, prefix="/api/v1")
     app.include_router(feature_toggles.router, prefix="/api/v1")
+    app.include_router(group_messages.router, prefix="/api/v1")
     app.include_router(internal_whatsapp.router)
 
     @app.get("/healthz")

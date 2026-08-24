@@ -260,6 +260,21 @@ button.danger:hover:not(:disabled) { background: #ff8080; }
 .tabs a:hover { color: var(--text); }
 .tabs a.active { border-bottom-color: var(--accent); color: var(--text); font-weight: 650; }
 
+.onboarding-tip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.onboarding-tip button { flex-shrink: 0; padding: 4px 12px; font-size: 12.5px; }
+
 .skeleton {
   background: linear-gradient(90deg, var(--panel) 25%, var(--panel-hover) 37%, var(--panel) 63%);
   background-size: 400% 100%;
