@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import require_internal_token
+from app.api.deps import require_internal_token, require_loopback_client
 from app.models.whatsapp import (
     GroupsSyncRequest,
     MessagePayload,
@@ -21,7 +21,11 @@ from app.services.keyword_search_service import get_keyword_search_service
 from app.services.whatsapp_poll_ingestion_service import get_poll_ingestion_service
 from app.services.whatsapp_session_state import get_session_state
 
-router = APIRouter(prefix="/internal/whatsapp", tags=["internal"], dependencies=[Depends(require_internal_token)])
+router = APIRouter(
+    prefix="/internal/whatsapp",
+    tags=["internal"],
+    dependencies=[Depends(require_loopback_client), Depends(require_internal_token)],
+)
 logger = logging.getLogger(__name__)
 
 

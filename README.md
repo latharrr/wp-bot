@@ -39,6 +39,34 @@ Feature grants take effect on a user's very next request, not after their token 
 `get_current_user` looks the account back up by username on every request rather than trusting
 role/features baked into the JWT.
 
+## Security notes
+
+- The app **refuses to start** if `API_KEY`, `JWT_SECRET`, `WHATSAPP_INTERNAL_TOKEN`, or
+  `WHATSAPP_BRIDGE_CONTROL_TOKEN` are still at their `.env.example` placeholder value (see
+  `Settings.insecure_defaults_still_in_use` in `app/core/config.py`) — those placeholders are
+  public since this repo is, so leaving one unset means anyone can forge a valid session.
+- `CORS_ALLOWED_ORIGINS` defaults to `*` for local dev; set it to your actual dashboard origin(s)
+  in production.
+- Login is rate-limited (5 failed attempts / 15 min per username, in-memory — see
+  `app/core/rate_limit.py`). This is a single-process limiter; it won't hold up if you ever run
+  more than one API instance behind a load balancer.
+- `/internal/whatsapp/*` (the bridge's webhooks) requires both a shared-secret token and that the
+  request came from loopback (`app/api/deps.py`'s `require_loopback_client`) — defense in depth
+  since it shares the same public port as the dashboard API in the default docker-compose setup.
+- **Using Baileys (or any unofficial WhatsApp client) is against WhatsApp's Terms of Service.**
+  No amount of careful engineering in this repo eliminates the risk of WhatsApp detecting and
+  banning/restricting the connected number — that's a platform-level risk inherent to the
+  approach, not a bug. What this codebase does do to reduce (not eliminate) that risk:
+  - Never sends bulk/automated messages into groups (the earlier consent-request-message flow
+    was removed entirely; the bridge is now purely a passive listener plus manual QR pairing).
+  - Debounces full-account group resyncs to once per 5 minutes (`FULL_GROUP_SYNC_COOLDOWN_MS` in
+    `whatsapp_bridge/bridge.ts`) so a flaky-network reconnect storm doesn't look like repeated
+    bulk scraping of every group's membership.
+  - Waits 3s before reconnecting after any disconnect, rather than hammering WhatsApp's servers
+    immediately.
+  - If you can't afford to lose the number, use the official WhatsApp Business Platform (Cloud
+    API) instead — it requires business verification but carries no ban risk for correct usage.
+
 ## Requirements
 
 - Python 3.11+

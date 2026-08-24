@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     api_key: str = "change-me-api-key"
     jwt_secret: str = "change-me-jwt-secret"
     jwt_expiry_hours: int = 24
+    # Comma-separated dashboard origins allowed to call the API cross-origin. The wildcard
+    # default is fine for local dev (dashboard on localhost:3000, API on localhost:8000); set
+    # this explicitly in production so a JWT stolen via some other means can't be replayed from
+    # an arbitrary third-party page (the JWT lives in localStorage, not a cookie, so this isn't
+    # exploitable today, but a wildcard is still a needless hardening gap to leave open).
+    cors_allowed_origins: str = "*"
 
     # Supabase
     supabase_url: str = ""
@@ -43,6 +49,12 @@ class Settings(BaseSettings):
     whatsapp_alert_recipients: str = ""
 
     @property
+    def cors_allowed_origin_list(self) -> list[str]:
+        if self.cors_allowed_origins.strip() == "*":
+            return ["*"]
+        return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
+
+    @property
     def alert_recipient_list(self) -> list[str]:
         return [addr.strip() for addr in self.whatsapp_alert_recipients.split(",") if addr.strip()]
 
@@ -53,6 +65,19 @@ class Settings(BaseSettings):
     @property
     def baileys_log_path(self) -> Path:
         return Path(self.baileys_log_dir).resolve()
+
+    def insecure_defaults_still_in_use(self) -> list[str]:
+        """Names of secrets still at their .env.example placeholder value. Anyone who forgets
+        to change JWT_SECRET in particular can be trivially impersonated as any user, since the
+        placeholder is public (it's committed in this repo) -- refuse to boot rather than run
+        with a well-known signing key."""
+        defaults = {
+            "API_KEY": ("change-me-api-key", self.api_key),
+            "JWT_SECRET": ("change-me-jwt-secret", self.jwt_secret),
+            "WHATSAPP_INTERNAL_TOKEN": ("change-me-internal-token", self.whatsapp_internal_token),
+            "WHATSAPP_BRIDGE_CONTROL_TOKEN": ("change-me-control-token", self.whatsapp_bridge_control_token),
+        }
+        return [name for name, (placeholder, actual) in defaults.items() if actual == placeholder]
 
 
 @lru_cache

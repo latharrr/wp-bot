@@ -1,10 +1,13 @@
+import hmac
 from dataclasses import dataclass, field
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 
 from app.core.auth import decode_access_token
 from app.core.config import get_settings
 from app.repositories.supabase_admin_repository import SupabaseAdminRepository
+
+LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 
 @dataclass
@@ -60,15 +63,26 @@ def require_feature(feature: str):
     return _check
 
 
+async def require_loopback_client(request: Request) -> None:
+    """The internal bridge->Python webhooks share the same public port as the dashboard API
+    (docker-compose exposes 8000 to the host) -- the shared-secret token below is the real
+    guard, but a bot spawned as a subprocess on the same host only ever calls this over
+    loopback, so reject anything else as defense in depth in case the token ever leaks or a
+    deployment exposes 8000 more widely than intended."""
+    client_host = request.client.host if request.client else None
+    if client_host not in LOOPBACK_HOSTS:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Internal endpoint")
+
+
 async def require_internal_token(x_internal_token: str | None = Header(default=None)) -> None:
     """Guards bridge -> Python webhooks. Never accepts the dashboard JWT or the public API key."""
     settings = get_settings()
-    if not x_internal_token or x_internal_token != settings.whatsapp_internal_token:
+    if not x_internal_token or not hmac.compare_digest(x_internal_token, settings.whatsapp_internal_token):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid internal token")
 
 
 async def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
     """Reserved for any future machine-to-machine public endpoints; the dashboard itself uses JWT."""
     settings = get_settings()
-    if not x_api_key or x_api_key != settings.api_key:
+    if not x_api_key or not hmac.compare_digest(x_api_key, settings.api_key):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")

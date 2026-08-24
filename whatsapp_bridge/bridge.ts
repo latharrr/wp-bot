@@ -36,8 +36,25 @@ async function writeQrCode(qr: string): Promise<void> {
   writeFileSync(config.qrCodeFile, JSON.stringify({ qr_data_url: dataUrl, generated_at: Date.now() }));
 }
 
-async function refreshGroups(): Promise<void> {
-  if (sock) await syncAllGroups(sock);
+const FULL_GROUP_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
+let lastFullGroupSyncAt = 0;
+
+/**
+ * A full sync fetches metadata (and every member) for every group on the account in one shot --
+ * fine occasionally, but repeated full-account scrapes on every reconnect (e.g. during a flaky
+ * network period, or the client restarting) is exactly the kind of bulk-fetch pattern WhatsApp's
+ * anti-abuse systems watch for. `force` bypasses the cooldown for an operator-initiated refresh
+ * from the control server, since that's a deliberate one-off action, not an automatic retry.
+ */
+async function refreshGroups(force = false): Promise<void> {
+  if (!sock) return;
+  const now = Date.now();
+  if (!force && now - lastFullGroupSyncAt < FULL_GROUP_SYNC_COOLDOWN_MS) {
+    console.log('Skipping full group sync (cooldown active); per-group updates still flow through group-participants.update');
+    return;
+  }
+  lastFullGroupSyncAt = now;
+  await syncAllGroups(sock);
 }
 
 async function start(): Promise<void> {
@@ -136,7 +153,7 @@ async function start(): Promise<void> {
   });
 }
 
-startControlServer(() => sock, refreshGroups);
+startControlServer(refreshGroups);
 
 start().catch((err) => {
   console.error('Fatal error starting bridge:', err);

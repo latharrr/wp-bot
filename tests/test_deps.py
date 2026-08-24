@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -5,6 +6,11 @@ from fastapi import HTTPException
 
 from app.api import deps as deps_module
 from app.core.auth import create_access_token
+
+
+def _fake_request(client_host: str | None):
+    client = SimpleNamespace(host=client_host) if client_host is not None else None
+    return SimpleNamespace(client=client)
 
 
 @pytest.fixture
@@ -90,3 +96,48 @@ async def test_require_feature_rejects_user_without_granted_feature():
     with pytest.raises(HTTPException) as exc:
         await check(user=user)
     assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_require_loopback_client_allows_localhost():
+    await deps_module.require_loopback_client(_fake_request("127.0.0.1"))
+    await deps_module.require_loopback_client(_fake_request("::1"))
+
+
+@pytest.mark.asyncio
+async def test_require_loopback_client_rejects_remote_host():
+    with pytest.raises(HTTPException) as exc:
+        await deps_module.require_loopback_client(_fake_request("203.0.113.7"))
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_require_loopback_client_rejects_missing_client():
+    with pytest.raises(HTTPException) as exc:
+        await deps_module.require_loopback_client(_fake_request(None))
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_require_internal_token_accepts_matching_token(monkeypatch):
+    settings = SimpleNamespace(whatsapp_internal_token="the-real-token")
+    monkeypatch.setattr(deps_module, "get_settings", lambda: settings)
+    await deps_module.require_internal_token(x_internal_token="the-real-token")
+
+
+@pytest.mark.asyncio
+async def test_require_internal_token_rejects_wrong_token(monkeypatch):
+    settings = SimpleNamespace(whatsapp_internal_token="the-real-token")
+    monkeypatch.setattr(deps_module, "get_settings", lambda: settings)
+    with pytest.raises(HTTPException) as exc:
+        await deps_module.require_internal_token(x_internal_token="wrong-token")
+    assert exc.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_require_internal_token_rejects_missing_token(monkeypatch):
+    settings = SimpleNamespace(whatsapp_internal_token="the-real-token")
+    monkeypatch.setattr(deps_module, "get_settings", lambda: settings)
+    with pytest.raises(HTTPException) as exc:
+        await deps_module.require_internal_token(x_internal_token=None)
+    assert exc.value.status_code == 401

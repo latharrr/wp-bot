@@ -39,11 +39,21 @@ async def lifespan(_: FastAPI):
 
 
 def create_app() -> FastAPI:
+    settings = get_settings()
+
+    insecure = settings.insecure_defaults_still_in_use()
+    if insecure:
+        raise RuntimeError(
+            "Refusing to start: these secrets are still at their .env.example placeholder value "
+            f"(anyone can read the placeholder from the public repo): {insecure}. "
+            "Set real random values for them in .env before running."
+        )
+
     app = FastAPI(title="wp-bot", lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.cors_allowed_origin_list,
         allow_methods=["*"],
         allow_headers=["*"],
         expose_headers=["Content-Disposition", "X-Above-Threshold-Count", "X-Row-Count"],

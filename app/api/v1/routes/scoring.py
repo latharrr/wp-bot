@@ -6,10 +6,18 @@ from app.services.poll_scoring_service import get_poll_scoring_service
 
 router = APIRouter(prefix="/polls", tags=["scoring"], dependencies=[Depends(require_feature("csv_scoring"))])
 
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # a poll-voter CSV realistically never approaches this
+
 
 @router.post("/score")
 async def score_poll_csv(file: UploadFile, _: str = Depends(get_current_admin)) -> Response:
-    raw_bytes = await file.read()
+    if file.size is not None and file.size > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="CSV file is too large")
+
+    raw_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(raw_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="CSV file is too large")
+
     try:
         result = get_poll_scoring_service().score_csv(raw_bytes, source_filename=file.filename or "upload.csv")
     except ValueError as exc:
