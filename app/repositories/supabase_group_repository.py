@@ -91,6 +91,42 @@ class SupabaseGroupRepository:
         )
         return response.data or []
 
+    def mark_backfill_started(self, group_jid: str) -> None:
+        self._client.table("groups").update(
+            {
+                "backfill_status": "running",
+                "backfill_started_at": datetime.now(UTC).isoformat(),
+                "backfill_completed_at": None,
+            }
+        ).eq("group_jid", group_jid).execute()
+
+    def mark_backfill_finished(
+        self,
+        group_jid: str,
+        pages_fetched: int,
+        messages_stored: int,
+        stopped_reason: str,
+        oldest_message_at: str | None,
+    ) -> None:
+        """oldest_message_at is the timestamp of the oldest message now on record for this group
+        -- i.e. how far back the group's history goes after this run, shown on the Groups page as
+        the backfill's "till date"."""
+        self._client.table("groups").update(
+            {
+                "backfill_status": "done",
+                "backfill_completed_at": datetime.now(UTC).isoformat(),
+                "backfill_pages_fetched": pages_fetched,
+                "backfill_messages_stored": messages_stored,
+                "backfill_stopped_reason": stopped_reason,
+                "backfill_oldest_message_at": oldest_message_at,
+            }
+        ).eq("group_jid", group_jid).execute()
+
+    def mark_backfill_failed(self, group_jid: str) -> None:
+        self._client.table("groups").update(
+            {"backfill_status": "failed", "backfill_completed_at": datetime.now(UTC).isoformat()}
+        ).eq("group_jid", group_jid).execute()
+
     def set_consent_status(self, group_jid: str, status: str, actor: str) -> None:
         now = datetime.now(UTC).isoformat()
         self._client.table("groups").update(

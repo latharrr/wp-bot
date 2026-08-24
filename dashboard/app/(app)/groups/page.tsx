@@ -14,6 +14,10 @@ type Group = {
   member_count: number;
   consent_status: string;
   last_synced_at: string | null;
+  backfill_status: 'running' | 'done' | 'failed' | null;
+  backfill_messages_stored: number | null;
+  backfill_oldest_message_at: string | null;
+  backfill_stopped_reason: string | null;
 };
 
 export default function GroupsPage() {
@@ -32,6 +36,10 @@ function GroupsPageContent() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
+  // Bridges the gap between "just queued" and the background job's first DB write marking the
+  // group 'running' -- without this, polling wouldn't start until that write lands, since it's
+  // driven by seeing 'running' in `groups` itself.
+  const [pendingBackfillJids, setPendingBackfillJids] = useState<Set<string>>(new Set());
 
   function refresh() {
     return api.get<Group[]>('/api/v1/groups').then(setGroups);
@@ -40,6 +48,24 @@ function GroupsPageContent() {
   useEffect(() => {
     refresh();
   }, []);
+
+  useEffect(() => {
+    const anyRunning = (groups ?? []).some((g) => g.backfill_status === 'running');
+    if (!anyRunning && pendingBackfillJids.size === 0) return;
+    const interval = setInterval(refresh, 4000);
+    return () => clearInterval(interval);
+  }, [groups, pendingBackfillJids]);
+
+  useEffect(() => {
+    if (pendingBackfillJids.size === 0 || !groups) return;
+    const stillPending = new Set(
+      Array.from(pendingBackfillJids).filter((jid) => {
+        const g = groups.find((x) => x.group_jid === jid);
+        return !g || g.backfill_status === 'running' || g.backfill_status == null;
+      })
+    );
+    if (stillPending.size !== pendingBackfillJids.size) setPendingBackfillJids(stillPending);
+  }, [groups]);
 
   const allJids = useMemo(() => (groups ?? []).map((g) => g.group_jid), [groups]);
   const allSelected = allJids.length > 0 && allJids.every((jid) => selected.has(jid));
@@ -96,6 +122,7 @@ function GroupsPageContent() {
             ? ` Skipped ${res.skipped.length} group(s) with no messages recorded yet to anchor from.`
             : '')
       );
+      setPendingBackfillJids(new Set(res.queued));
       setSelected(new Set());
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Backfill failed to start');
@@ -105,6 +132,26 @@ function GroupsPageContent() {
   }
 
   const consentedCount = (groups ?? []).filter((g) => g.consent_status === 'consented').length;
+
+  function backfillCell(g: Group) {
+    if (g.backfill_status === 'running') return <span className="muted">Running…</span>;
+    if (g.backfill_status === 'failed') return <span className="muted">Failed — try again</span>;
+    if (g.backfill_status === 'done') {
+      const count = g.backfill_messages_stored ?? 0;
+      if (count === 0) {
+        return <span className="muted">Nothing further back available</span>;
+      }
+      const tillDate = g.backfill_oldest_message_at
+        ? new Date(g.backfill_oldest_message_at).toLocaleDateString()
+        : null;
+      return (
+        <span className="muted">
+          {count} msg(s) added{tillDate ? ` — back to ${tillDate}` : ''}
+        </span>
+      );
+    }
+    return <span className="muted">—</span>;
+  }
 
   return (
     <div>
@@ -172,6 +219,7 @@ function GroupsPageContent() {
                     <th>Group</th>
                     <th>Members</th>
                     <th>Consent</th>
+                    {isSuperAdmin && <th>History backfill</th>}
                     <th></th>
                   </tr>
                 </thead>
@@ -182,6 +230,7 @@ function GroupsPageContent() {
                       <td>{g.group_name ?? g.group_jid}</td>
                       <td>{g.member_count}</td>
                       <td><ConsentStatusBadge status={g.consent_status} /></td>
+                      {isSuperAdmin && <td>{backfillCell(g)}</td>}
                       <td><Link href={`/groups/${encodeURIComponent(g.group_jid)}`}>Open →</Link></td>
                     </tr>
                   ))}
