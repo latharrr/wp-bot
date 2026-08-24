@@ -3,6 +3,7 @@ import {
   getAggregateVotesInPollMessage,
   getKeyAuthor,
   jidNormalizedUser,
+  proto,
   type WAMessage,
   type WASocket,
 } from '@whiskeysockets/baileys';
@@ -13,6 +14,82 @@ import { phoneFromJid } from '../utils/phone.js';
  * messages (which only carry an encrypted delta) can be decrypted against the original poll.
  * Baileys' getAggregateVotesInPollMessage needs the creation message's encryption key. */
 const pollCreationCache = new Map<string, WAMessage>();
+
+const HISTORY_RECOVERY_TIMEOUT_MS = 15_000;
+const HISTORY_RECOVERY_PAGE_SIZE = 20;
+
+/**
+ * Waits for the on-demand history sync response matching `requestId`. Ported (in scoped-down
+ * form) from poison-br09/whatsapp-propensity-scoring: that repo continuously tracks the oldest
+ * message ever seen per group and proactively backfills on every reconnect. That's meaningfully
+ * more surface area to get wrong against a live paired session, and more repeated history-sync
+ * traffic for WhatsApp's anti-abuse systems to look at (see the ban-risk notes in the README).
+ * This version only asks for history reactively, anchored at the vote message itself, exactly
+ * when a vote references a poll-creation message we don't have cached -- at most one request
+ * per occurrence, not a standing background job.
+ */
+function waitForOnDemandHistory(sock: WASocket, requestId: string, groupJid: string): Promise<WAMessage[] | undefined> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: WAMessage[] | undefined) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      sock.ev.off('messaging-history.set', handler);
+      resolve(result);
+    };
+
+    const timeout = setTimeout(() => finish(undefined), HISTORY_RECOVERY_TIMEOUT_MS);
+
+    const handler = (payload: {
+      messages: WAMessage[];
+      syncType?: proto.HistorySync.HistorySyncType | null;
+      peerDataRequestSessionId?: string | null;
+    }) => {
+      if (payload.syncType !== proto.HistorySync.HistorySyncType.ON_DEMAND || payload.peerDataRequestSessionId !== requestId) {
+        return;
+      }
+      finish(payload.messages.filter((message) => message.key.remoteJid === groupJid));
+    };
+
+    sock.ev.on('messaging-history.set', handler);
+  });
+}
+
+async function recoverMissingPollCreation(
+  sock: WASocket,
+  anchorMessage: WAMessage,
+  pollCreationMessageId: string,
+): Promise<WAMessage | undefined> {
+  const groupJid = anchorMessage.key.remoteJid;
+  if (!groupJid || !anchorMessage.key.id) return undefined;
+
+  try {
+    const requestId = await sock.fetchMessageHistory(
+      HISTORY_RECOVERY_PAGE_SIZE,
+      anchorMessage.key,
+      Number(anchorMessage.messageTimestamp ?? Math.floor(Date.now() / 1000)),
+    );
+    console.log(`Requested on-demand history to recover poll creation ${pollCreationMessageId} in ${groupJid}`);
+
+    const messages = await waitForOnDemandHistory(sock, requestId, groupJid);
+    if (!messages?.length) {
+      console.warn(`On-demand history recovery for poll ${pollCreationMessageId} returned nothing`);
+      return undefined;
+    }
+
+    for (const message of messages) {
+      const pollCreation = message.message?.pollCreationMessageV3 ?? message.message?.pollCreationMessage;
+      if (pollCreation && message.key.id) {
+        pollCreationCache.set(message.key.id, message);
+      }
+    }
+    return pollCreationCache.get(pollCreationMessageId);
+  } catch (err) {
+    console.error(`Failed to recover poll creation ${pollCreationMessageId} via history backfill:`, err);
+    return undefined;
+  }
+}
 
 export async function handlePollCreation(msg: WAMessage, groupJid: string): Promise<void> {
   const pollCreation = msg.message?.pollCreationMessageV3 ?? msg.message?.pollCreationMessage;
@@ -37,9 +114,13 @@ export async function handlePollUpdate(sock: WASocket, msg: WAMessage, groupJid:
   const pollCreationMessageId = update?.pollCreationMessageKey?.id;
   if (!update || !pollCreationMessageId) return;
 
-  const creationMsg = pollCreationCache.get(pollCreationMessageId);
+  let creationMsg = pollCreationCache.get(pollCreationMessageId);
+  if (!creationMsg) {
+    console.warn(`No cached poll creation for ${pollCreationMessageId}; attempting on-demand history recovery`);
+    creationMsg = await recoverMissingPollCreation(sock, msg, pollCreationMessageId);
+  }
   if (!creationMsg || !update.vote) {
-    console.warn(`No cached poll creation for ${pollCreationMessageId}; skipping vote (bridge likely restarted mid-poll)`);
+    console.warn(`Could not recover poll creation for ${pollCreationMessageId}; skipping vote`);
     return;
   }
 

@@ -60,6 +60,15 @@ class SupabasePollRepository:
         )
         return response.data or []
 
+    def list_all_polls(self, group_jid: str | None, page: int, page_size: int) -> tuple[list[dict], int]:
+        """Cross-group, paginated -- for the operator's "All Polls" view. Returns (rows, total)."""
+        query = self._client.table("whatsapp_poll").select("*", count="exact")
+        if group_jid:
+            query = query.eq("group_jid", group_jid)
+        start = (page - 1) * page_size
+        response = query.order("poll_created_at", desc=True).range(start, start + page_size - 1).execute()
+        return response.data or [], response.count or 0
+
     def get_poll(self, poll_message_id: str) -> dict | None:
         response = (
             self._client.table("whatsapp_poll")

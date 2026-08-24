@@ -12,6 +12,10 @@ from app.models.whatsapp import (
     ReactionPayload,
     SessionEventPayload,
 )
+from app.repositories.supabase_feature_toggle_repository import (
+    KEYWORD_ANALYSIS,
+    SupabaseFeatureToggleRepository,
+)
 from app.repositories.supabase_group_repository import SupabaseGroupRepository
 from app.repositories.supabase_keyword_repository import SupabaseKeywordRepository
 from app.services.consent_service import get_consent_service
@@ -77,9 +81,10 @@ def message(payload: MessagePayload) -> dict:
     }
     keyword_repo.store_message(message_row)
 
-    active_keywords = [w["keyword"] for w in keyword_repo.list_recent_watches(limit=200) if w.get("is_active", True)]
-    if active_keywords:
-        get_keyword_search_service().check_message_for_keywords(active_keywords, message_row)
+    if SupabaseFeatureToggleRepository().is_enabled(KEYWORD_ANALYSIS):
+        active_keywords = [w["keyword"] for w in keyword_repo.list_all_keywords() if w.get("is_active", True)]
+        if active_keywords:
+            get_keyword_search_service().check_message_for_keywords(active_keywords, message_row)
 
     consent_opt_in = get_consent_service().handle_reply(payload.group_jid, payload.reply_to_message_id, sender_phone)
 

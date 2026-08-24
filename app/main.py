@@ -7,10 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.internal.routes import whatsapp as internal_whatsapp
 from app.api.v1.routes import (
     admin,
+    all_polls,
     auth,
     consent,
     contacts,
     exports,
+    feature_toggles,
     groups,
     keywords,
     polls,
@@ -66,9 +68,11 @@ def create_app() -> FastAPI:
     app.include_router(consent.router, prefix="/api/v1")
     app.include_router(contacts.router, prefix="/api/v1")
     app.include_router(polls.router, prefix="/api/v1")
+    app.include_router(all_polls.router, prefix="/api/v1")
     app.include_router(scoring.router, prefix="/api/v1")
     app.include_router(keywords.router, prefix="/api/v1")
     app.include_router(exports.router, prefix="/api/v1")
+    app.include_router(feature_toggles.router, prefix="/api/v1")
     app.include_router(internal_whatsapp.router)
 
     @app.get("/healthz")

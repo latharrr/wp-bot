@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/apiClient';
 import { useCurrentUser } from '@/lib/useCurrentUser';
+import { FeatureTogglesPanel } from '@/components/FeatureTogglesPanel';
 
 type User = { username: string; role: 'super_admin' | 'user'; allowed_features: string[]; created_at: string };
 
@@ -105,6 +106,8 @@ function AdminPageContent() {
       <h2>Admin</h2>
       <p className="muted">Create new dashboard users and choose which features each one can see.</p>
 
+      <FeatureTogglesPanel />
+
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Create user</h3>
         <div className="row" style={{ flexWrap: 'wrap' }}>
@@ -139,48 +142,50 @@ function AdminPageContent() {
         {!users ? (
           <p className="muted">Loading...</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Role</th>
-                <th>Features</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.username}>
-                  <td>{u.username}</td>
-                  <td className="muted">{u.role}</td>
-                  <td>
-                    {u.role === 'super_admin' ? (
-                      <span className="muted">All (super admin)</span>
-                    ) : (
-                      <div className="row" style={{ flexWrap: 'wrap' }}>
-                        {features.map((feature) => (
-                          <label key={feature} className="row" style={{ gap: 4 }}>
-                            <input
-                              type="checkbox"
-                              checked={u.allowed_features.includes(feature)}
-                              disabled={busy}
-                              onChange={() => toggleUserFeature(u, feature)}
-                            />
-                            {FEATURE_LABELS[feature] ?? feature}
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    {u.role !== 'super_admin' && (
-                      <DeleteUserButton username={u.username} busy={busy} setBusy={setBusy} setError={setError} onDeleted={refresh} />
-                    )}
-                  </td>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Role</th>
+                  <th>Features</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.username}>
+                    <td>{u.username}</td>
+                    <td className="muted">{u.role}</td>
+                    <td>
+                      {u.role === 'super_admin' ? (
+                        <span className="muted">All (super admin)</span>
+                      ) : (
+                        <div className="row" style={{ flexWrap: 'wrap' }}>
+                          {features.map((feature) => (
+                            <label key={feature} className="row" style={{ gap: 4 }}>
+                              <input
+                                type="checkbox"
+                                checked={u.allowed_features.includes(feature)}
+                                disabled={busy}
+                                onChange={() => toggleUserFeature(u, feature)}
+                              />
+                              {FEATURE_LABELS[feature] ?? feature}
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      {u.role !== 'super_admin' && (
+                        <DeleteUserButton username={u.username} busy={busy} setBusy={setBusy} setError={setError} onDeleted={refresh} />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

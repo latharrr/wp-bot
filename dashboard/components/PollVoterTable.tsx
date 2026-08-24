@@ -72,29 +72,33 @@ export function PollVoterTable({ groupJid, pollMessageId, poll }: { groupJid: st
             </button>
           </div>
 
+          <div className="table-scroll">
+            <table style={{ marginTop: 14 }}>
+              <thead><tr><th>Voter</th><th>Phone</th><th>Selected</th><th>Voted at</th></tr></thead>
+              <tbody>
+                {filteredVoters.map((v) => (
+                  <tr key={v.voter_phone}>
+                    <td>{v.voter_name ?? '—'}</td>
+                    <td>{v.voter_phone}</td>
+                    <td>{v.selected_options.join(', ')}</td>
+                    <td className="muted">{new Date(v.last_vote_timestamp).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <div className="table-scroll">
           <table style={{ marginTop: 14 }}>
-            <thead><tr><th>Voter</th><th>Phone</th><th>Selected</th><th>Voted at</th></tr></thead>
+            <thead><tr><th>Option</th><th>Votes</th></tr></thead>
             <tbody>
-              {filteredVoters.map((v) => (
-                <tr key={v.voter_phone}>
-                  <td>{v.voter_name ?? '—'}</td>
-                  <td>{v.voter_phone}</td>
-                  <td>{v.selected_options.join(', ')}</td>
-                  <td className="muted">{new Date(v.last_vote_timestamp).toLocaleString()}</td>
-                </tr>
+              {Object.entries(poll.aggregate_counts ?? {}).map(([option, count]) => (
+                <tr key={option}><td>{option}</td><td>{count}</td></tr>
               ))}
             </tbody>
           </table>
-        </>
-      ) : (
-        <table style={{ marginTop: 14 }}>
-          <thead><tr><th>Option</th><th>Votes</th></tr></thead>
-          <tbody>
-            {Object.entries(poll.aggregate_counts ?? {}).map(([option, count]) => (
-              <tr key={option}><td>{option}</td><td>{count}</td></tr>
-            ))}
-          </tbody>
-        </table>
+        </div>
       )}
     </div>
   );

@@ -67,10 +67,30 @@ function GroupsPageContent() {
     }
   }
 
+  const consentedCount = (groups ?? []).filter((g) => g.consent_status === 'consented').length;
+
   return (
     <div>
       <h2>Groups</h2>
       <p className="muted">Groups the connected WhatsApp account belongs to. Nothing is exportable until you mark a group consented.</p>
+
+      {groups && groups.length > 0 && (
+        <div className="stat-grid" style={{ marginBottom: 20 }}>
+          <div className="stat-tile">
+            <div className="stat-label">Total groups</div>
+            <div className="stat-value">{groups.length}</div>
+          </div>
+          <div className="stat-tile">
+            <div className="stat-label">Consented</div>
+            <div className="stat-value">{consentedCount}</div>
+          </div>
+          <div className="stat-tile">
+            <div className="stat-label">Total members</div>
+            <div className="stat-value">{groups.reduce((sum, g) => sum + g.member_count, 0).toLocaleString()}</div>
+          </div>
+        </div>
+      )}
+
       <div className="card">
         {!groups ? (
           <p className="muted">Loading...</p>
@@ -95,28 +115,30 @@ function GroupsPageContent() {
             </div>
             {error && <div className="error" style={{ marginTop: 8 }}>{error}</div>}
 
-            <table style={{ marginTop: 14 }}>
-              <thead>
-                <tr>
-                  <th><input type="checkbox" checked={allSelected} onChange={toggleSelectAll} /></th>
-                  <th>Group</th>
-                  <th>Members</th>
-                  <th>Consent</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {groups.map((g) => (
-                  <tr key={g.group_jid}>
-                    <td><input type="checkbox" checked={selected.has(g.group_jid)} onChange={() => toggleSelected(g.group_jid)} /></td>
-                    <td>{g.group_name ?? g.group_jid}</td>
-                    <td>{g.member_count}</td>
-                    <td><ConsentStatusBadge status={g.consent_status} /></td>
-                    <td><Link href={`/groups/${encodeURIComponent(g.group_jid)}`}>Open →</Link></td>
+            <div className="table-scroll">
+              <table style={{ marginTop: 14 }}>
+                <thead>
+                  <tr>
+                    <th><input type="checkbox" checked={allSelected} onChange={toggleSelectAll} /></th>
+                    <th>Group</th>
+                    <th>Members</th>
+                    <th>Consent</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {groups.map((g) => (
+                    <tr key={g.group_jid}>
+                      <td><input type="checkbox" checked={selected.has(g.group_jid)} onChange={() => toggleSelected(g.group_jid)} /></td>
+                      <td>{g.group_name ?? g.group_jid}</td>
+                      <td>{g.member_count}</td>
+                      <td><ConsentStatusBadge status={g.consent_status} /></td>
+                      <td><Link href={`/groups/${encodeURIComponent(g.group_jid)}`}>Open →</Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </>
         )}
       </div>

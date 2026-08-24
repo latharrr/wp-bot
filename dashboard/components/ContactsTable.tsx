@@ -27,14 +27,16 @@ export function ContactsTable({ groupJid, contacts }: { groupJid: string; contac
       )}
 
       {contacts.exportable && (
-        <table style={{ marginTop: 14 }}>
-          <thead><tr><th>Name</th><th>Phone</th></tr></thead>
-          <tbody>
-            {contacts.members.map((m) => (
-              <tr key={m.phone}><td>{m.display_name ?? '—'}</td><td>{m.phone}</td></tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-scroll">
+          <table style={{ marginTop: 14 }}>
+            <thead><tr><th>Name</th><th>Phone</th></tr></thead>
+            <tbody>
+              {contacts.members.map((m) => (
+                <tr key={m.phone}><td>{m.display_name ?? '—'}</td><td>{m.phone}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

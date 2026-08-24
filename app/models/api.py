@@ -51,3 +51,16 @@ class BulkOptInBody(BaseModel):
 
 class BulkGroupActionBody(BaseModel):
     group_jids: list[str]
+
+
+class AddKeywordsBody(BaseModel):
+    keywords: list[str]
+
+
+class SetKeywordsEnabledBody(BaseModel):
+    keywords: list[str]
+    enabled: bool
+
+
+class DeleteKeywordsBody(BaseModel):
+    keywords: list[str]

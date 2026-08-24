@@ -46,6 +46,18 @@ class KeywordSearchService:
     def recent_searches(self) -> list[dict]:
         return self._keywords.list_recent_watches()
 
+    def list_all_keywords(self) -> list[dict]:
+        return self._keywords.list_all_keywords()
+
+    def add_keywords(self, keywords: list[str]) -> list[dict]:
+        return self._keywords.add_keywords(keywords)
+
+    def set_keywords_enabled(self, keywords: list[str], enabled: bool) -> list[dict]:
+        return self._keywords.set_keywords_enabled(keywords, enabled)
+
+    def delete_keywords(self, keywords: list[str]) -> list[dict]:
+        return self._keywords.delete_keywords(keywords)
+
 
 def get_keyword_search_service() -> KeywordSearchService:
     return KeywordSearchService()

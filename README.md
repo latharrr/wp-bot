@@ -22,6 +22,42 @@ raw `group_members` / `keyword_match` tables. Do not add a code path that bypass
 Poll voter breakdowns use the group-level gate only (poll votes are already visible to everyone
 in the group natively); non-consented groups only ever get aggregate counts, never named voters.
 
+## Live propensity scoring, keyword watchlist, and automation switches
+
+Ported from [`poison-br09/whatsapp-propensity-scoring`](https://github.com/poison-br09/whatsapp-propensity-scoring)
+(the predecessor this project already carried forward the scoring heuristic from):
+
+- **Live scoring** — a "yes" vote on a poll whose two options map to a recognizable yes/no pair
+  (`app/services/vote_normalization.py`'s token dictionary: "yes/interested/buy" vs
+  "no/skip/not interested", etc.) is scored the instant it arrives, the same way a CSV row is —
+  no manual export/upload needed. Still requires the voter's phone to be resolvable (see the
+  `@lid` notes above) and only fires for the "yes" side (a "no" has no propensity to project).
+- **Keyword watchlist** (Keyword Search page → "Watched keywords" tab) — explicitly add/enable/
+  disable/delete keywords that get checked against every incoming message continuously, instead
+  of only ever being backfilled reactively when someone runs a search.
+- **Automation switches** (Admin page) — pause keyword matching or live scoring globally without
+  disconnecting WhatsApp. Gated by the dashboard's own super_admin JWT rather than an API key
+  baked into the frontend build, unlike the reference repo's version of this (see
+  `app/api/v1/routes/feature_toggles.py`).
+- **Poll history recovery** — if a vote arrives referencing a poll-creation message the bridge
+  never saw live (e.g. it restarted mid-poll), it makes one on-demand Baileys history-sync
+  request anchored at the vote to try to recover it (`whatsapp_bridge/src/handlers/polls.ts`).
+  This is a deliberately scoped-down port of the reference repo's continuous background backfill
+  system — reactive and bounded to one request per occurrence, not a standing job that
+  re-scrapes every group's history on every reconnect. It also can't work miracles: WhatsApp only
+  syncs so much history to a linked device, so very old votes still won't be recoverable.
+- **All Polls page** (nav) — a paginated, cross-group poll listing distinct from a single group's
+  own Polls tab, with an optional `group_jid` filter, matching the reference repo's admin view.
+
+**Not ported:** the reference repo's core architecture is fully multi-tenant — every registered
+user pairs their own separate WhatsApp number through their own dedicated bridge process. This
+app deliberately keeps the original single-business-connection model instead (one bridge, staff
+differentiated by dashboard *feature* access, not by *which WhatsApp number* they own) since
+converting to per-user bridges is a fundamental product-shape change, not a portable feature —
+it would mean redesigning the consent model around multiple simultaneous bridges and carries
+real risk to an already-paired live session. Ask for it explicitly as a separate, deliberate
+project if you actually need multiple independent WhatsApp numbers under one dashboard.
+
 ## Users and roles
 
 There are two roles:

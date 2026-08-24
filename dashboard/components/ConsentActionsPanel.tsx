@@ -138,7 +138,7 @@ export function ConsentActionsPanel({
             padding: '12px 16px',
             fontSize: 15,
             fontWeight: 700,
-            background: selected.size > 0 ? '#2f6fed' : undefined,
+            background: selected.size > 0 ? 'var(--accent-hover)' : undefined,
           }}
         >
           {busy
@@ -150,6 +150,7 @@ export function ConsentActionsPanel({
       )}
 
       {members.length > 0 && (
+        <div className="table-scroll">
         <table style={{ marginTop: 14 }}>
           <thead>
             <tr>
@@ -197,6 +198,7 @@ export function ConsentActionsPanel({
             })}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

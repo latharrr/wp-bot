@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 
-from app.api.deps import get_current_admin, require_feature
+from app.api.deps import get_current_admin, require_feature, require_super_admin
+from app.models.api import AddKeywordsBody, DeleteKeywordsBody, SetKeywordsEnabledBody
 from app.services.export_service import get_export_service
 from app.services.keyword_search_service import get_keyword_search_service
 
@@ -29,3 +30,25 @@ def export_search(q: str = Query(..., min_length=1), actor: str = Depends(get_cu
 @router.get("/recent")
 def recent(_: str = Depends(get_current_admin)) -> list[dict]:
     return get_keyword_search_service().recent_searches()
+
+
+@router.get("/watchlist")
+def list_watchlist(_: str = Depends(get_current_admin)) -> list[dict]:
+    """The full managed keyword list (continuously matched against every incoming message),
+    distinct from /recent's bounded "recent ad-hoc searches" list."""
+    return get_keyword_search_service().list_all_keywords()
+
+
+@router.post("/watchlist")
+def add_to_watchlist(body: AddKeywordsBody, _: str = Depends(get_current_admin)) -> dict:
+    return {"results": get_keyword_search_service().add_keywords(body.keywords)}
+
+
+@router.patch("/watchlist")
+def set_watchlist_enabled(body: SetKeywordsEnabledBody, _: str = Depends(require_super_admin)) -> dict:
+    return {"updated": get_keyword_search_service().set_keywords_enabled(body.keywords, body.enabled)}
+
+
+@router.delete("/watchlist")
+def delete_from_watchlist(body: DeleteKeywordsBody, _: str = Depends(require_super_admin)) -> dict:
+    return {"results": get_keyword_search_service().delete_keywords(body.keywords)}

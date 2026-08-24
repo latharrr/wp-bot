@@ -33,6 +33,49 @@ class SupabaseKeywordRepository:
         )
         return response.data or []
 
+    def list_all_keywords(self) -> list[dict]:
+        """The full managed watchlist (Keywords admin page) -- distinct from
+        list_recent_watches, which is bounded/ordered for the "recent searches" shortcut list."""
+        response = self._client.table("keyword_watch").select("*").order("keyword").execute()
+        return response.data or []
+
+    def add_keywords(self, keywords: list[str]) -> list[dict]:
+        """Explicitly register keywords for continuous matching -- unlike record_watch (called
+        implicitly by an ad-hoc search), this is the operator saying "watch for this" without
+        needing to search for it first. Idempotent: already-registered keywords are left alone
+        (in particular, their is_active/search_count aren't reset)."""
+        existing = {row["keyword"] for row in self.list_all_keywords()}
+        results = []
+        now = datetime.now(UTC).isoformat()
+        for keyword in dict.fromkeys(k.strip().lower() for k in keywords if k.strip()):
+            already_existed = keyword in existing
+            if not already_existed:
+                self._client.table("keyword_watch").insert(
+                    {"keyword": keyword, "search_count": 0, "last_searched_at": now}
+                ).execute()
+            results.append({"keyword": keyword, "added": not already_existed, "already_existed": already_existed})
+        return results
+
+    def set_keywords_enabled(self, keywords: list[str], enabled: bool) -> list[dict]:
+        existing = {row["keyword"]: row["id"] for row in self.list_all_keywords()}
+        results = []
+        for keyword in dict.fromkeys(k.strip().lower() for k in keywords if k.strip()):
+            row_id = existing.get(keyword)
+            if row_id:
+                self._client.table("keyword_watch").update({"is_active": enabled}).eq("id", row_id).execute()
+            results.append({"keyword": keyword, "enabled": enabled, "found": row_id is not None})
+        return results
+
+    def delete_keywords(self, keywords: list[str]) -> list[dict]:
+        existing = {row["keyword"] for row in self.list_all_keywords()}
+        results = []
+        for keyword in dict.fromkeys(k.strip().lower() for k in keywords if k.strip()):
+            found = keyword in existing
+            if found:
+                self._client.table("keyword_watch").delete().eq("keyword", keyword).execute()
+            results.append({"keyword": keyword, "deleted": found})
+        return results
+
     def upsert_match(self, payload: dict) -> None:
         self._client.table("keyword_match").upsert(payload, on_conflict="message_id,keyword").execute()
 

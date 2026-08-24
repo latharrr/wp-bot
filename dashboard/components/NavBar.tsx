@@ -8,6 +8,7 @@ import { hasFeature, useCurrentUser } from '@/lib/useCurrentUser';
 const LINKS = [
   { href: '/', label: 'Connection', feature: 'connection' },
   { href: '/groups', label: 'Groups', feature: 'groups' },
+  { href: '/polls', label: 'All Polls', feature: 'groups' },
   { href: '/keyword-search', label: 'Keyword Search', feature: 'keyword_search' },
   { href: '/scoring', label: 'CSV Scoring', feature: 'csv_scoring' },
   { href: '/exports', label: 'Export Log', feature: 'export_log' },
@@ -25,12 +26,12 @@ export function NavBar() {
       <h1>wp-bot</h1>
       <nav>
         {links.map((link) => (
-          <Link key={link.href} href={link.href} style={pathname === link.href ? { background: 'var(--panel)', fontWeight: 600 } : undefined}>
+          <Link key={link.href} href={link.href} className={pathname === link.href ? 'active' : undefined}>
             {link.label}
           </Link>
         ))}
         {user?.role === 'super_admin' && (
-          <Link href="/admin" style={pathname === '/admin' ? { background: 'var(--panel)', fontWeight: 600 } : undefined}>
+          <Link href="/admin" className={pathname === '/admin' ? 'active' : undefined}>
             Admin
           </Link>
         )}
