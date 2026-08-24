@@ -6,6 +6,7 @@ import { api, ApiError } from '@/lib/apiClient';
 import { ConsentStatusBadge } from '@/components/ConsentStatusBadge';
 import { OnboardingTip } from '@/components/OnboardingTip';
 import { RequireFeature } from '@/components/RequireFeature';
+import { useCurrentUser } from '@/lib/useCurrentUser';
 
 type Group = {
   group_jid: string;
@@ -24,10 +25,13 @@ export default function GroupsPage() {
 }
 
 function GroupsPageContent() {
+  const { user } = useCurrentUser();
+  const isSuperAdmin = user?.role === 'super_admin';
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
 
   function refresh() {
     return api.get<Group[]>('/api/v1/groups').then(setGroups);
@@ -63,6 +67,38 @@ function GroupsPageContent() {
       await refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Bulk action failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runBackfill() {
+    if (selected.size === 0) return;
+    const confirmed = window.confirm(
+      `Backfill older history for ${selected.size} group(s)?\n\n` +
+        `This pages backward through WhatsApp's on-demand history sync for each group, one at a ` +
+        `time, as far back as WhatsApp still has available -- not guaranteed to be the group's ` +
+        `full history since it was created. It runs in the background and can take a while per ` +
+        `group. It's also more sync traffic than this bot normally generates on your live number, ` +
+        `so only run this deliberately -- test on one group first if you haven't before.`
+    );
+    if (!confirmed) return;
+    setBusy(true);
+    setError(null);
+    setBackfillMsg(null);
+    try {
+      const res = await api.post<{ queued: string[]; skipped: string[] }>('/api/v1/groups/backfill-history', {
+        group_jids: Array.from(selected),
+      });
+      setBackfillMsg(
+        `Backfill started in the background for ${res.queued.length} group(s).` +
+          (res.skipped.length > 0
+            ? ` Skipped ${res.skipped.length} group(s) with no messages recorded yet to anchor from.`
+            : '')
+      );
+      setSelected(new Set());
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Backfill failed to start');
     } finally {
       setBusy(false);
     }
@@ -118,9 +154,15 @@ function GroupsPageContent() {
                 >
                   Revoke selected
                 </button>
+                {isSuperAdmin && (
+                  <button className="secondary" disabled={busy || selected.size === 0} onClick={runBackfill}>
+                    Backfill history
+                  </button>
+                )}
               </div>
             </div>
             {error && <div className="error" style={{ marginTop: 8 }}>{error}</div>}
+            {backfillMsg && <div className="muted" style={{ marginTop: 8 }}>{backfillMsg}</div>}
 
             <div className="table-scroll">
               <table style={{ marginTop: 14 }}>

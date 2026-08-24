@@ -151,3 +151,16 @@ class SupabaseKeywordRepository:
     def count_messages_for_group(self, group_jid: str) -> int:
         response = self._client.table("messages").select("id", count="exact").eq("group_jid", group_jid).execute()
         return response.count or 0
+
+    def get_oldest_message(self, group_jid: str) -> dict | None:
+        """The earliest message currently on record for this group -- used as the anchor point to
+        page further backward via WhatsApp's on-demand history sync (see BackfillService)."""
+        response = (
+            self._client.table("messages")
+            .select("message_id,sender_jid,sent_at")
+            .eq("group_jid", group_jid)
+            .order("sent_at", desc=False)
+            .limit(1)
+            .execute()
+        )
+        return response.data[0] if response.data else None

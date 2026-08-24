@@ -3,58 +3,30 @@ import {
   getAggregateVotesInPollMessage,
   getKeyAuthor,
   jidNormalizedUser,
-  proto,
   type WAMessage,
   type WASocket,
 } from '@whiskeysockets/baileys';
 import { internalClient } from '../http/internalClient.js';
 import { phoneFromJid } from '../utils/phone.js';
+import { waitForOnDemandHistory } from '../utils/historySync.js';
 
 /** Poll-creation messages, keyed by message id, kept in memory so incoming vote-update
  * messages (which only carry an encrypted delta) can be decrypted against the original poll.
  * Baileys' getAggregateVotesInPollMessage needs the creation message's encryption key. */
 const pollCreationCache = new Map<string, WAMessage>();
 
-const HISTORY_RECOVERY_TIMEOUT_MS = 15_000;
 const HISTORY_RECOVERY_PAGE_SIZE = 20;
 
 /**
- * Waits for the on-demand history sync response matching `requestId`. Ported (in scoped-down
- * form) from poison-br09/whatsapp-propensity-scoring: that repo continuously tracks the oldest
- * message ever seen per group and proactively backfills on every reconnect. That's meaningfully
- * more surface area to get wrong against a live paired session, and more repeated history-sync
- * traffic for WhatsApp's anti-abuse systems to look at (see the ban-risk notes in the README).
- * This version only asks for history reactively, anchored at the vote message itself, exactly
- * when a vote references a poll-creation message we don't have cached -- at most one request
- * per occurrence, not a standing background job.
+ * Ported (in scoped-down form) from poison-br09/whatsapp-propensity-scoring: that repo
+ * continuously tracks the oldest message ever seen per group and proactively backfills on every
+ * reconnect. That's meaningfully more surface area to get wrong against a live paired session,
+ * and more repeated history-sync traffic for WhatsApp's anti-abuse systems to look at (see the
+ * ban-risk notes in the README). This version only asks for history reactively, anchored at the
+ * vote message itself, exactly when a vote references a poll-creation message we don't have
+ * cached -- at most one request per occurrence, not a standing background job. (For a deliberate,
+ * manually-triggered deep backfill of ordinary messages, see backfill.ts instead.)
  */
-function waitForOnDemandHistory(sock: WASocket, requestId: string, groupJid: string): Promise<WAMessage[] | undefined> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (result: WAMessage[] | undefined) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      sock.ev.off('messaging-history.set', handler);
-      resolve(result);
-    };
-
-    const timeout = setTimeout(() => finish(undefined), HISTORY_RECOVERY_TIMEOUT_MS);
-
-    const handler = (payload: {
-      messages: WAMessage[];
-      syncType?: proto.HistorySync.HistorySyncType | null;
-      peerDataRequestSessionId?: string | null;
-    }) => {
-      if (payload.syncType !== proto.HistorySync.HistorySyncType.ON_DEMAND || payload.peerDataRequestSessionId !== requestId) {
-        return;
-      }
-      finish(payload.messages.filter((message) => message.key.remoteJid === groupJid));
-    };
-
-    sock.ev.on('messaging-history.set', handler);
-  });
-}
 
 async function recoverMissingPollCreation(
   sock: WASocket,

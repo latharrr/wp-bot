@@ -61,6 +61,30 @@ Ported from [`poison-br09/whatsapp-propensity-scoring`](https://github.com/poiso
 - **All Polls page** (nav) — a paginated, cross-group poll listing distinct from a single group's
   own Polls tab, with an optional `group_jid` filter, matching the reference repo's admin view.
 
+## Deep history backfill (manual, super_admin only)
+
+By default the bridge only ever stores messages sent *after* it was paired — WhatsApp's
+multi-device protocol doesn't hand a linked device a group's full historical backlog. To pull
+older messages in on purpose, a super_admin can select one or more groups on the **Groups** page
+and click **"Backfill history"**. This pages backward through WhatsApp's on-demand history sync
+(`sock.fetchMessageHistory`, the same mechanism `whatsapp_bridge/src/handlers/polls.ts` already
+used for one-off poll recovery — see `whatsapp_bridge/src/handlers/backfill.ts`), anchored at the
+oldest message currently on record for that group, until WhatsApp stops returning anything
+further back. That's the real, undocumented boundary of what's available — **not** a guarantee of
+reaching the group's full history since it was created.
+
+A few deliberate constraints, given this is more sync traffic than the bridge normally generates
+on a live paired number (see the ban-risk notes below):
+
+- A group needs at least one message already on record to backfill from — there's nothing to
+  anchor a fresh request to otherwise.
+- Selected groups are processed **one at a time, sequentially** (`app/services/backfill_service.py`),
+  never concurrently, no matter how many are selected at once.
+- It's gated to `super_admin` specifically (`require_super_admin`), not just the `groups` feature —
+  the same stricter bar as the Admin page's automation switches.
+- It's a manual, deliberate action, not something that runs automatically on reconnect or on a
+  schedule — recommend testing on a single, less-active group first before selecting many at once.
+
 **Not ported:** the reference repo's core architecture is fully multi-tenant — every registered
 user pairs their own separate WhatsApp number through their own dedicated bridge process. This
 app deliberately keeps the original single-business-connection model instead (one bridge, staff

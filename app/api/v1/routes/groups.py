@@ -1,8 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
-from app.api.deps import get_current_admin, require_feature
+from app.api.deps import (
+    CurrentUser,
+    get_current_admin,
+    require_feature,
+    require_super_admin,
+)
 from app.models.api import BulkGroupActionBody
 from app.repositories.supabase_group_repository import SupabaseGroupRepository
+from app.services.backfill_service import get_backfill_service
 from app.services.consent_service import get_consent_service
 
 router = APIRouter(prefix="/groups", tags=["groups"], dependencies=[Depends(require_feature("groups"))])
@@ -27,6 +33,26 @@ def bulk_revoke_consent(body: BulkGroupActionBody, actor: str = Depends(get_curr
     for group_jid in body.group_jids:
         service.revoke_group_consent(group_jid, actor)
     return {"count": len(body.group_jids)}
+
+
+@router.post("/backfill-history")
+def backfill_history(
+    body: BulkGroupActionBody,
+    background_tasks: BackgroundTasks,
+    _: CurrentUser = Depends(require_super_admin),
+) -> dict:
+    """Manually triggers WhatsApp's on-demand history sync to pull messages older than anything
+    currently recorded, for each selected group in turn -- one group fully at a time in the
+    background (see BackfillService). Not a guarantee of reaching a group's full history since
+    creation, just as far back as WhatsApp's own servers still have available. Deliberately a
+    manual, super_admin-only action rather than an automatic bulk job -- see the README's
+    consent-model/ban-risk notes."""
+    service = get_backfill_service()
+    anchors = {jid: service.anchor_for_group(jid) for jid in body.group_jids}
+    queued = [jid for jid, anchor in anchors.items() if anchor is not None]
+    skipped = [jid for jid, anchor in anchors.items() if anchor is None]
+    background_tasks.add_task(service.run, queued)
+    return {"queued": queued, "skipped": skipped}
 
 
 @router.get("/{group_jid}")

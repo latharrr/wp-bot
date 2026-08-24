@@ -22,6 +22,31 @@ class BridgeControlClient:
             )
             response.raise_for_status()
 
+    async def backfill_history(
+        self,
+        group_jid: str,
+        anchor_message_id: str,
+        anchor_participant: str | None,
+        anchor_timestamp_sec: float,
+    ) -> dict:
+        """Blocks until the bridge finishes paging backward through one group's on-demand history
+        sync -- deliberately no timeout, since a deep backfill can legitimately take minutes and
+        BackfillService.run awaits this once per group, sequentially, so the next group never
+        starts until this one is fully done."""
+        async with httpx.AsyncClient(timeout=None) as client:
+            response = await client.post(
+                f"{self._base_url}/backfill-history",
+                headers={"x-control-token": self._token},
+                json={
+                    "group_jid": group_jid,
+                    "anchor_message_id": anchor_message_id,
+                    "anchor_participant": anchor_participant,
+                    "anchor_timestamp_sec": anchor_timestamp_sec,
+                },
+            )
+            response.raise_for_status()
+            return response.json()
+
 
 def get_bridge_control_client() -> BridgeControlClient:
     return BridgeControlClient()

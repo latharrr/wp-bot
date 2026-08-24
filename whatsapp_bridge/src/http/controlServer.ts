@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import express, { type Request, type Response } from 'express';
 import type { WASocket } from '@whiskeysockets/baileys';
 import { config } from '../config.js';
+import { backfillGroupHistory } from '../handlers/backfill.js';
 
 function isValidToken(provided: string | undefined): boolean {
   if (!provided) return false;
@@ -48,6 +49,33 @@ export function startControlServer(refreshGroups: (force?: boolean) => Promise<v
       res.json({ ok: true });
     } catch (err) {
       res.status(502).json({ error: err instanceof Error ? err.message : 'logout failed' });
+    }
+  });
+
+  app.post('/backfill-history', async (req: Request, res: Response) => {
+    const sock = getSocket();
+    if (!sock) {
+      res.status(503).json({ error: 'socket not connected' });
+      return;
+    }
+    const { group_jid, anchor_message_id, anchor_participant, anchor_timestamp_sec } = req.body ?? {};
+    if (!group_jid || !anchor_message_id || !anchor_timestamp_sec) {
+      res.status(400).json({ error: 'group_jid, anchor_message_id, and anchor_timestamp_sec are required' });
+      return;
+    }
+    try {
+      // Awaits the full backfill (can legitimately take minutes) rather than firing-and-forgetting
+      // -- the Python side calls this once per selected group, sequentially, and relies on this
+      // response only returning once that group is actually done so it never has two groups'
+      // backfills running concurrently.
+      const result = await backfillGroupHistory(sock, group_jid, {
+        messageId: anchor_message_id,
+        participant: anchor_participant ?? null,
+        timestampSec: anchor_timestamp_sec,
+      });
+      res.json(result);
+    } catch (err) {
+      res.status(502).json({ error: err instanceof Error ? err.message : 'backfill failed' });
     }
   });
 
