@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.core.supabase_client import get_supabase
 
@@ -14,7 +14,7 @@ class SupabaseKeywordRepository:
         existing = (
             self._client.table("keyword_watch").select("id,search_count").eq("keyword", keyword).limit(1).execute()
         )
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         if existing.data:
             row = existing.data[0]
             self._client.table("keyword_watch").update(

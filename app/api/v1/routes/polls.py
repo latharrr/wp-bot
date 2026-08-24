@@ -1,4 +1,3 @@
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
@@ -39,7 +38,7 @@ def get_poll_detail(group_jid: str, poll_message_id: str, _: str = Depends(get_c
 def export_poll(
     group_jid: str,
     poll_message_id: str,
-    option: Optional[str] = Query(default=None, description="Limit the export to voters who picked this option"),
+    option: str | None = Query(default=None, description="Limit the export to voters who picked this option"),
     actor: str = Depends(get_current_admin),
 ) -> Response:
     content, filename = get_export_service().export_poll(poll_message_id, group_jid, actor, option)

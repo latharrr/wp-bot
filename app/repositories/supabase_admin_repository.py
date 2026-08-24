@@ -1,4 +1,3 @@
-from typing import Optional
 
 from app.core.supabase_client import get_supabase
 
@@ -7,7 +6,7 @@ class SupabaseAdminRepository:
     def __init__(self) -> None:
         self._client = get_supabase()
 
-    def get_by_username(self, username: str) -> Optional[dict]:
+    def get_by_username(self, username: str) -> dict | None:
         response = (
             self._client.table("admin_users").select("*").eq("username", username).limit(1).execute()
         )
@@ -15,7 +14,7 @@ class SupabaseAdminRepository:
         return rows[0] if rows else None
 
     def create(
-        self, username: str, password_hash: str, role: str = "user", allowed_features: Optional[list[str]] = None
+        self, username: str, password_hash: str, role: str = "user", allowed_features: list[str] | None = None
     ) -> None:
         self._client.table("admin_users").insert(
             {

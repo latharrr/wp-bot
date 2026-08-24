@@ -31,3 +31,8 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+[tool.ruff.lint]
+# B008 flags `= Depends(...)` in argument defaults -- that's the standard, required FastAPI
+# dependency-injection idiom throughout this codebase, not a real mutable-default bug.
+ignore = ["B008"]

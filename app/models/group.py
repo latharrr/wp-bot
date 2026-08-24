@@ -1,11 +1,10 @@
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class GroupRecord:
     group_jid: str
-    group_name: Optional[str]
+    group_name: str | None
     member_count: int
     consent_status: str  # none | consented | revoked
 
@@ -21,8 +20,8 @@ class GroupRecord:
 class GroupMemberRecord:
     group_jid: str
     member_jid: str
-    phone: Optional[str]
-    display_name: Optional[str]
+    phone: str | None
+    display_name: str | None
     is_admin: bool
 
     def to_supabase_payload(self) -> dict:

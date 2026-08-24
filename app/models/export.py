@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -8,8 +7,8 @@ class ExportAuditLogEntry:
     export_type: str  # contacts | poll | keyword
     row_count: int
     filename: str
-    group_jid: Optional[str] = None
-    keyword: Optional[str] = None
+    group_jid: str | None = None
+    keyword: str | None = None
 
     def to_supabase_payload(self) -> dict:
         return {

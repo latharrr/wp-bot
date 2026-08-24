@@ -10,8 +10,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.core.auth import hash_password  # noqa: E402
-from app.repositories.supabase_admin_repository import SupabaseAdminRepository  # noqa: E402
+from app.core.auth import hash_password
+from app.repositories.supabase_admin_repository import (
+    SupabaseAdminRepository,
+)
 
 
 def main() -> None:

@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import Optional
 
 from fastapi import Depends, Header, HTTPException, status
 
@@ -15,7 +14,7 @@ class CurrentUser:
     allowed_features: list[str] = field(default_factory=list)
 
 
-async def get_current_user(authorization: Optional[str] = Header(default=None)) -> CurrentUser:
+async def get_current_user(authorization: str | None = Header(default=None)) -> CurrentUser:
     """Requires a valid dashboard JWT: 'Authorization: Bearer <token>'. Looks the user back up by
     username (rather than trusting role/features baked into the token) so a super_admin revoking
     or changing someone's feature access takes effect on their very next request, not just after
@@ -61,14 +60,14 @@ def require_feature(feature: str):
     return _check
 
 
-async def require_internal_token(x_internal_token: Optional[str] = Header(default=None)) -> None:
+async def require_internal_token(x_internal_token: str | None = Header(default=None)) -> None:
     """Guards bridge -> Python webhooks. Never accepts the dashboard JWT or the public API key."""
     settings = get_settings()
     if not x_internal_token or x_internal_token != settings.whatsapp_internal_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid internal token")
 
 
-async def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> None:
+async def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
     """Reserved for any future machine-to-machine public endpoints; the dashboard itself uses JWT."""
     settings = get_settings()
     if not x_api_key or x_api_key != settings.api_key:

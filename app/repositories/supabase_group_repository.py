@@ -1,5 +1,4 @@
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from app.core.supabase_client import get_supabase
 from app.models.group import GroupMemberRecord
@@ -9,19 +8,19 @@ class SupabaseGroupRepository:
     def __init__(self) -> None:
         self._client = get_supabase()
 
-    def upsert_group(self, group_jid: str, group_name: Optional[str], member_count: int) -> None:
+    def upsert_group(self, group_jid: str, group_name: str | None, member_count: int) -> None:
         payload = {
             "group_jid": group_jid,
             "group_name": group_name,
             "member_count": member_count,
-            "last_synced_at": datetime.now(timezone.utc).isoformat(),
+            "last_synced_at": datetime.now(UTC).isoformat(),
         }
         self._client.table("groups").upsert(payload, on_conflict="group_jid").execute()
 
     def upsert_members(self, group_jid: str, members: list[GroupMemberRecord]) -> None:
         if not members:
             return
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         rows = []
         for member in members:
             row = member.to_supabase_payload()
@@ -38,7 +37,7 @@ class SupabaseGroupRepository:
         )
         return response.data or []
 
-    def get_group(self, group_jid: str) -> Optional[dict]:
+    def get_group(self, group_jid: str) -> dict | None:
         response = (
             self._client.table("groups").select("*").eq("group_jid", group_jid).limit(1).execute()
         )
@@ -55,7 +54,7 @@ class SupabaseGroupRepository:
         )
         return response.data or []
 
-    def get_member_phone(self, group_jid: str, member_jid: str) -> Optional[str]:
+    def get_member_phone(self, group_jid: str, member_jid: str) -> str | None:
         """The authoritative phone for a member identity, resolved once via groupMetadata's
         phoneNumber field (see whatsapp_bridge/src/handlers/groups.ts) and stored here. Message
         and reaction events should look up phone this way rather than trusting their own
@@ -87,7 +86,7 @@ class SupabaseGroupRepository:
         return response.data or []
 
     def set_consent_status(self, group_jid: str, status: str, actor: str) -> None:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         self._client.table("groups").update(
             {"consent_status": status, "consent_marked_by": actor, "consent_marked_at": now}
         ).eq("group_jid", group_jid).execute()

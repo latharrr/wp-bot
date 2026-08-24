@@ -5,9 +5,8 @@ and read by the dashboard-facing /session/status endpoint. Process-local by desi
 ever one bridge subprocess per API process, same assumption the reference repo makes.
 """
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
 
 class ConnectionStatus(str, Enum):
@@ -21,13 +20,13 @@ class ConnectionStatus(str, Enum):
 @dataclass
 class SessionState:
     status: ConnectionStatus = ConnectionStatus.DISCONNECTED
-    phone_number: Optional[str] = None
-    pairing_code: Optional[str] = None
-    last_event_at: Optional[datetime] = None
-    last_error: Optional[str] = None
+    phone_number: str | None = None
+    pairing_code: str | None = None
+    last_event_at: datetime | None = None
+    last_error: str | None = None
 
-    def apply_event(self, event: str, phone_number: Optional[str], status_code: Optional[int]) -> None:
-        self.last_event_at = datetime.now(timezone.utc)
+    def apply_event(self, event: str, phone_number: str | None, status_code: int | None) -> None:
+        self.last_event_at = datetime.now(UTC)
         if phone_number:
             self.phone_number = phone_number
 

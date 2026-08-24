@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 
@@ -30,7 +30,7 @@ def test_decode_rejects_garbage_token():
 
 def test_decode_rejects_expired_token():
     settings = get_settings()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expired = jwt.encode(
         {"sub": "alice", "iat": now - timedelta(hours=2), "exp": now - timedelta(hours=1)},
         settings.jwt_secret,
@@ -40,7 +40,7 @@ def test_decode_rejects_expired_token():
 
 
 def test_decode_rejects_token_signed_with_wrong_secret():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     token = jwt.encode(
         {"sub": "alice", "iat": now, "exp": now + timedelta(hours=1)},
         "some-other-secret",

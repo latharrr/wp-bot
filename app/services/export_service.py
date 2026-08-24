@@ -3,8 +3,7 @@ other being the dashboard "detail" queries) allowed to read exportable_contacts 
 exportable_keyword_matches -- see migration 016 and supabase_group_repository /
 supabase_keyword_repository for why those views exist."""
 import io
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from openpyxl import Workbook
 
@@ -46,7 +45,7 @@ class ExportService:
         return content, filename
 
     def export_poll(
-        self, poll_message_id: str, group_jid: str, actor: str, option: Optional[str] = None
+        self, poll_message_id: str, group_jid: str, actor: str, option: str | None = None
     ) -> tuple[bytes, str]:
         group = self._groups.get_group(group_jid)
         is_consented = bool(group and group.get("consent_status") == "consented")
@@ -94,7 +93,7 @@ class ExportService:
 
 
 def _timestamp() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    return datetime.now(UTC).strftime("%Y%m%d%H%M%S")
 
 
 def get_export_service() -> ExportService:

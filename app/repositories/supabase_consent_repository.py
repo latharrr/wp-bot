@@ -1,5 +1,4 @@
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from app.core.supabase_client import get_supabase
 from app.models.consent import ConsentPromptRecord, MemberConsentRecord
@@ -18,7 +17,7 @@ class SupabaseConsentRepository:
         self.deactivate_active_prompts(prompt.group_jid)
         self._client.table("consent_prompts").insert(prompt.to_supabase_payload()).execute()
 
-    def get_active_prompt_by_message_id(self, message_id: str) -> Optional[dict]:
+    def get_active_prompt_by_message_id(self, message_id: str) -> dict | None:
         response = (
             self._client.table("consent_prompts")
             .select("*")
@@ -45,7 +44,7 @@ class SupabaseConsentRepository:
 
     def record_opt_out(self, group_jid: str, member_phone: str) -> None:
         self._client.table("member_consent").update(
-            {"opted_in": False, "opted_out_at": datetime.now(timezone.utc).isoformat()}
+            {"opted_in": False, "opted_out_at": datetime.now(UTC).isoformat()}
         ).eq("group_jid", group_jid).eq("member_phone", member_phone).execute()
 
     def list_member_consent(self, group_jid: str) -> list[dict]:

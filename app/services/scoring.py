@@ -1,9 +1,8 @@
 """Ported verbatim (logic-wise) from the reference repo's app/services/scoring.py."""
 from datetime import date
-from typing import Optional
 
 
-def _days_since(reference_date: date, past_date: Optional[date]) -> Optional[int]:
+def _days_since(reference_date: date, past_date: date | None) -> int | None:
     if past_date is None:
         return None
     return (reference_date - past_date).days

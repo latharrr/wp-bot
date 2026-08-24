@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 
@@ -59,7 +59,7 @@ def message(payload: MessagePayload) -> dict:
     # groupMetadata sync, so prefer it and keep the two sources of "this person's phone" in sync
     # -- otherwise consent (keyed on phone) silently stops matching for this sender.
     sender_phone = SupabaseGroupRepository().get_member_phone(payload.group_jid, payload.sender_jid) or payload.sender_phone
-    sent_at = datetime.fromtimestamp(payload.message_timestamp_ms / 1000, tz=timezone.utc).isoformat()
+    sent_at = datetime.fromtimestamp(payload.message_timestamp_ms / 1000, tz=UTC).isoformat()
     message_row = {
         "group_jid": payload.group_jid,
         "group_name": payload.group_name,

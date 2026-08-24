@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.models.whatsapp import PollCreatedPayload, PollVotePayload
 from app.repositories.supabase_poll_repository import SupabasePollRepository
@@ -30,7 +30,7 @@ class WhatsappPollIngestionService:
             poll_created_at_ms=payload.vote_timestamp_ms,
         )
 
-        vote_timestamp = datetime.fromtimestamp(payload.vote_timestamp_ms / 1000, tz=timezone.utc).isoformat()
+        vote_timestamp = datetime.fromtimestamp(payload.vote_timestamp_ms / 1000, tz=UTC).isoformat()
 
         self._polls.insert_vote_event_if_new(
             payload.dedupe_key,

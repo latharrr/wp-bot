@@ -1,4 +1,3 @@
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -43,7 +42,7 @@ class UpdateUserFeaturesRequest(BaseModel):
 
 
 class ManualOptInBody(BaseModel):
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 class BulkOptInBody(BaseModel):

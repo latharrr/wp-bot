@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -23,7 +22,7 @@ class MemberConsentRecord:
     member_phone: str
     opted_in: bool
     opt_in_method: str  # reply | reaction | manual_admin
-    opt_in_message_id: Optional[str] = None
+    opt_in_message_id: str | None = None
 
     def to_supabase_payload(self) -> dict:
         return {

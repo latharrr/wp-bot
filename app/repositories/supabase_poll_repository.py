@@ -1,5 +1,4 @@
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from app.core.config import get_settings
 from app.core.supabase_client import get_supabase
@@ -15,7 +14,7 @@ class SupabasePollRepository:
     def upsert_poll(
         self,
         group_jid: str,
-        group_name: Optional[str],
+        group_name: str | None,
         poll_message_id: str,
         poll_title: str,
         poll_options: list[str],
@@ -27,7 +26,7 @@ class SupabasePollRepository:
             "poll_message_id": poll_message_id,
             "poll_title": poll_title,
             "poll_options": poll_options,
-            "poll_created_at": datetime.fromtimestamp(poll_created_at_ms / 1000, tz=timezone.utc).isoformat(),
+            "poll_created_at": datetime.fromtimestamp(poll_created_at_ms / 1000, tz=UTC).isoformat(),
         }
         self._client.table("whatsapp_poll").upsert(payload, on_conflict="poll_message_id").execute()
 
@@ -61,7 +60,7 @@ class SupabasePollRepository:
         )
         return response.data or []
 
-    def get_poll(self, poll_message_id: str) -> Optional[dict]:
+    def get_poll(self, poll_message_id: str) -> dict | None:
         response = (
             self._client.table("whatsapp_poll")
             .select("*")

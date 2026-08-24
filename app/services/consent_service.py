@@ -6,7 +6,6 @@ which enforce the gates in SQL regardless of what this service does -- this serv
 the *workflow* (request -> opt-in -> mark consented -> revoke), the views are the backstop.
 """
 import logging
-from typing import Optional
 
 from app.models.consent import MemberConsentRecord
 from app.repositories.supabase_consent_repository import SupabaseConsentRepository
@@ -50,7 +49,7 @@ class ConsentService:
         self._consent.bulk_record_opt_in(records)
         return len(records)
 
-    def handle_reply(self, group_jid: str, reply_to_message_id: Optional[str], sender_phone: Optional[str]) -> bool:
+    def handle_reply(self, group_jid: str, reply_to_message_id: str | None, sender_phone: str | None) -> bool:
         """Called from the /internal/whatsapp/message webhook. Returns True if this reply
         opted the sender into consent (matched an active prompt in their group)."""
         if not reply_to_message_id or not sender_phone:
@@ -70,7 +69,7 @@ class ConsentService:
         logger.info("Recorded consent opt-in via reply: group=%s phone=%s", group_jid, sender_phone)
         return True
 
-    def handle_reaction(self, group_jid: str, target_message_id: str, reactor_phone: Optional[str]) -> bool:
+    def handle_reaction(self, group_jid: str, target_message_id: str, reactor_phone: str | None) -> bool:
         """Called from the /internal/whatsapp/reaction webhook."""
         if not reactor_phone:
             return False

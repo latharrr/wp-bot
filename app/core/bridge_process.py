@@ -11,7 +11,6 @@ import shutil
 import signal
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 from app.core.config import Settings, get_settings
 from app.services.whatsapp_session_state import ConnectionStatus, get_session_state
@@ -25,9 +24,9 @@ QR_CODE_POLL_INTERVAL_SECONDS = 0.5
 
 
 class BridgeProcessManager:
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
-        self._process: Optional[subprocess.Popen] = None
+        self._process: subprocess.Popen | None = None
 
     @property
     def project_dir(self) -> Path:
@@ -45,7 +44,7 @@ class BridgeProcessManager:
     def qr_code_file(self) -> Path:
         return self.project_dir / ".qr-code.json"
 
-    def _build_env(self, pairing_phone_number: Optional[str] = None) -> dict:
+    def _build_env(self, pairing_phone_number: str | None = None) -> dict:
         env = os.environ.copy()
         env.update(
             {
@@ -67,7 +66,7 @@ class BridgeProcessManager:
     def is_running(self) -> bool:
         return self._process is not None and self._process.poll() is None
 
-    def start(self, pairing_phone_number: Optional[str] = None) -> None:
+    def start(self, pairing_phone_number: str | None = None) -> None:
         if self.is_running():
             logger.info("Bridge already running, skipping start")
             return
@@ -157,7 +156,7 @@ class BridgeProcessManager:
 
         raise TimeoutError("Timed out waiting for the bridge to generate a QR code")
 
-    def get_qr_code(self) -> Optional[dict]:
+    def get_qr_code(self) -> dict | None:
         if not self.qr_code_file.exists():
             return None
         try:
@@ -168,7 +167,7 @@ class BridgeProcessManager:
             return None
 
 
-_manager: Optional[BridgeProcessManager] = None
+_manager: BridgeProcessManager | None = None
 
 
 def get_bridge_manager() -> BridgeProcessManager:

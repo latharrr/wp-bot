@@ -4,14 +4,13 @@ matching the reference repo's documented behavior."""
 import logging
 import smtplib
 from email.mime.text import MIMEText
-from typing import Optional
 
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
 
-def send_logout_alert(phone_number: Optional[str], status_code: Optional[int]) -> None:
+def send_logout_alert(phone_number: str | None, status_code: int | None) -> None:
     settings = get_settings()
     recipients = settings.alert_recipient_list
 
