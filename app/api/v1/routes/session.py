@@ -51,3 +51,11 @@ def get_qr_code(_: str = Depends(get_current_admin)) -> QrCodeResponse:
     if not qr:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No QR code available yet")
     return QrCodeResponse(**qr)
+
+
+@router.post("/disconnect")
+async def disconnect(_: str = Depends(get_current_admin)) -> dict:
+    """Properly unlinks the device from WhatsApp (not just stopping our local process) and
+    clears the local session -- a fresh QR/pairing is required to reconnect afterward."""
+    await get_bridge_manager().disconnect()
+    return {"status": "disconnected"}

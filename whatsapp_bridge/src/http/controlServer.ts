@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import express, { type Request, type Response } from 'express';
+import type { WASocket } from '@whiskeysockets/baileys';
 import { config } from '../config.js';
 
 function isValidToken(provided: string | undefined): boolean {
@@ -12,10 +13,11 @@ function isValidToken(provided: string | undefined): boolean {
 
 /**
  * Small localhost-only server the Python side calls to reach into the live WhatsApp session --
- * currently just "force an immediate group resync". Separate shared-secret from the internal
- * webhook direction (bridge -> Python) since this is the opposite trust boundary.
+ * force an immediate group resync, or properly unlink the device (not just stop our local
+ * process). Separate shared-secret from the internal webhook direction (bridge -> Python) since
+ * this is the opposite trust boundary.
  */
-export function startControlServer(refreshGroups: (force?: boolean) => Promise<void>): void {
+export function startControlServer(refreshGroups: (force?: boolean) => Promise<void>, getSocket: () => WASocket | null): void {
   const app = express();
   app.use(express.json());
 
@@ -30,6 +32,23 @@ export function startControlServer(refreshGroups: (force?: boolean) => Promise<v
   app.post('/refresh-groups', async (_req: Request, res: Response) => {
     await refreshGroups(true);
     res.json({ ok: true });
+  });
+
+  app.post('/logout', async (_req: Request, res: Response) => {
+    const sock = getSocket();
+    if (!sock) {
+      res.status(503).json({ error: 'socket not connected' });
+      return;
+    }
+    try {
+      // sock.logout() tells WhatsApp's servers to actually unlink this device (it disappears
+      // from Linked Devices on the phone too), as opposed to just stopping our local process --
+      // which would leave a ghost linked device until WhatsApp times it out on its own.
+      await sock.logout();
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(502).json({ error: err instanceof Error ? err.message : 'logout failed' });
+    }
   });
 
   app.listen(config.controlPort, '127.0.0.1', () => {

@@ -12,6 +12,7 @@ import signal
 import subprocess
 from pathlib import Path
 
+from app.core.bridge_control_client import get_bridge_control_client
 from app.core.config import Settings, get_settings
 from app.services.whatsapp_session_state import ConnectionStatus, get_session_state
 
@@ -106,6 +107,17 @@ class BridgeProcessManager:
             self.pairing_code_file.unlink()
         if self.qr_code_file.exists():
             self.qr_code_file.unlink()
+
+    async def disconnect(self) -> None:
+        """Properly unlink the device from WhatsApp's side, not just stop our local process --
+        without the logout call, the number would keep showing as a linked device on the phone
+        until WhatsApp times it out on its own."""
+        if self.is_running():
+            try:
+                await get_bridge_control_client().logout()
+            except Exception:
+                logger.exception("Bridge logout request failed; proceeding with local reset anyway")
+        self.reset_session()
 
     async def request_pairing_code(self, phone_number: str) -> str:
         """Reset any existing session, start the bridge in pairing mode, wait for the pairing code."""

@@ -153,7 +153,7 @@ async function start(): Promise<void> {
   });
 }
 
-startControlServer(refreshGroups);
+startControlServer(refreshGroups, () => sock);
 
 start().catch((err) => {
   console.error('Fatal error starting bridge:', err);
