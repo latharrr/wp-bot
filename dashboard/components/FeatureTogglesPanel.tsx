@@ -24,9 +24,16 @@ export function FeatureTogglesPanel() {
   const [toggles, setToggles] = useState<Toggle[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  function refresh() {
-    return api.get<Toggle[]>('/api/v1/feature-toggles').then(setToggles);
+  async function refresh() {
+    try {
+      setToggles(await api.get<Toggle[]>('/api/v1/feature-toggles'));
+      setLoadFailed(false);
+    } catch (err) {
+      setLoadFailed(true);
+      setError(err instanceof ApiError ? err.message : 'Failed to load automation switches');
+    }
   }
 
   useEffect(() => {
@@ -50,7 +57,7 @@ export function FeatureTogglesPanel() {
     <div className="card">
       <h3 style={{ marginTop: 0 }}>Automation switches</h3>
       {error && <div className="error">{error}</div>}
-      {!toggles ? (
+      {loadFailed ? null : !toggles ? (
         <p className="muted">Loading...</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>

@@ -18,8 +18,12 @@ export function KeywordWatchlist() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function refresh() {
-    return api.get<WatchedKeyword[]>('/api/v1/keywords/watchlist').then(setKeywords);
+  async function refresh() {
+    try {
+      setKeywords(await api.get<WatchedKeyword[]>('/api/v1/keywords/watchlist'));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to load watched keywords');
+    }
   }
 
   useEffect(() => {

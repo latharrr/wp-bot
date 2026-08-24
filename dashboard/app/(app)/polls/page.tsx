@@ -34,7 +34,7 @@ function AllPollsPageContent() {
   useEffect(() => {
     const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
     if (groupFilter.trim()) params.set('group_jid', groupFilter.trim());
-    api.get<PollsResponse>(`/api/v1/polls?${params.toString()}`).then(setData);
+    api.get<PollsResponse>(`/api/v1/polls?${params.toString()}`).then(setData).catch(() => setData({ total: 0, page, page_size: PAGE_SIZE, polls: [] }));
   }, [page, groupFilter]);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.page_size)) : 1;
