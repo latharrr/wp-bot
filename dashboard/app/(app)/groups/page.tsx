@@ -6,7 +6,6 @@ import { api, ApiError } from '@/lib/apiClient';
 import { ConsentStatusBadge } from '@/components/ConsentStatusBadge';
 import { OnboardingTip } from '@/components/OnboardingTip';
 import { RequireFeature } from '@/components/RequireFeature';
-import { useCurrentUser } from '@/lib/useCurrentUser';
 
 type Group = {
   group_jid: string;
@@ -29,8 +28,6 @@ export default function GroupsPage() {
 }
 
 function GroupsPageContent() {
-  const { user } = useCurrentUser();
-  const isSuperAdmin = user?.role === 'super_admin';
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -99,14 +96,16 @@ function GroupsPageContent() {
   }
 
   async function runBackfill() {
-    if (selected.size === 0) return;
+    if (selected.size !== 1) return;
+    const [groupJid] = Array.from(selected);
+    const groupName = groups?.find((g) => g.group_jid === groupJid)?.group_name ?? groupJid;
     const confirmed = window.confirm(
-      `Backfill older history for ${selected.size} group(s)?\n\n` +
-        `This pages backward through WhatsApp's on-demand history sync for each group, one at a ` +
-        `time, as far back as WhatsApp still has available -- not guaranteed to be the group's ` +
-        `full history since it was created. It runs in the background and can take a while per ` +
-        `group. It's also more sync traffic than this bot normally generates on your live number, ` +
-        `so only run this deliberately -- test on one group first if you haven't before.`
+      `Backfill older history for "${groupName}"?\n\n` +
+        `This pages backward through WhatsApp's on-demand history sync, as far back as WhatsApp ` +
+        `still has available -- not guaranteed to be the group's full history since it was ` +
+        `created. It runs in the background and can take a while. Only one group can backfill ` +
+        `at a time across the whole account, so this will be rejected if another one is still ` +
+        `running -- wait for it to finish first.`
     );
     if (!confirmed) return;
     setBusy(true);
@@ -114,13 +113,12 @@ function GroupsPageContent() {
     setBackfillMsg(null);
     try {
       const res = await api.post<{ queued: string[]; skipped: string[] }>('/api/v1/groups/backfill-history', {
-        group_jids: Array.from(selected),
+        group_jids: [groupJid],
       });
       setBackfillMsg(
-        `Backfill started in the background for ${res.queued.length} group(s).` +
-          (res.skipped.length > 0
-            ? ` Skipped ${res.skipped.length} group(s) with no messages recorded yet to anchor from.`
-            : '')
+        res.queued.length > 0
+          ? `Backfill started in the background for "${groupName}".`
+          : `Skipped "${groupName}" -- no messages recorded yet to anchor from.`
       );
       setPendingBackfillJids(new Set(res.queued));
       setSelected(new Set());
@@ -201,11 +199,14 @@ function GroupsPageContent() {
                 >
                   Revoke selected
                 </button>
-                {isSuperAdmin && (
-                  <button className="secondary" disabled={busy || selected.size === 0} onClick={runBackfill}>
-                    Backfill history
-                  </button>
-                )}
+                <button
+                  className="secondary"
+                  disabled={busy || selected.size !== 1}
+                  title={selected.size > 1 ? 'Select exactly one group to backfill' : undefined}
+                  onClick={runBackfill}
+                >
+                  Backfill history
+                </button>
               </div>
             </div>
             {error && <div className="error" style={{ marginTop: 8 }}>{error}</div>}
@@ -219,7 +220,7 @@ function GroupsPageContent() {
                     <th>Group</th>
                     <th>Members</th>
                     <th>Consent</th>
-                    {isSuperAdmin && <th>History backfill</th>}
+                    <th>History backfill</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -230,7 +231,7 @@ function GroupsPageContent() {
                       <td>{g.group_name ?? g.group_jid}</td>
                       <td>{g.member_count}</td>
                       <td><ConsentStatusBadge status={g.consent_status} /></td>
-                      {isSuperAdmin && <td>{backfillCell(g)}</td>}
+                      <td>{backfillCell(g)}</td>
                       <td><Link href={`/groups/${encodeURIComponent(g.group_jid)}`}>Open →</Link></td>
                     </tr>
                   ))}

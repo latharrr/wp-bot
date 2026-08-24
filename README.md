@@ -61,29 +61,41 @@ Ported from [`poison-br09/whatsapp-propensity-scoring`](https://github.com/poiso
 - **All Polls page** (nav) — a paginated, cross-group poll listing distinct from a single group's
   own Polls tab, with an optional `group_jid` filter, matching the reference repo's admin view.
 
-## Deep history backfill (manual, super_admin only)
+## Deep history backfill (manual, one group at a time)
 
 By default the bridge only ever stores messages sent *after* it was paired — WhatsApp's
 multi-device protocol doesn't hand a linked device a group's full historical backlog. To pull
-older messages in on purpose, a super_admin can select one or more groups on the **Groups** page
-and click **"Backfill history"**. This pages backward through WhatsApp's on-demand history sync
-(`sock.fetchMessageHistory`, the same mechanism `whatsapp_bridge/src/handlers/polls.ts` already
-used for one-off poll recovery — see `whatsapp_bridge/src/handlers/backfill.ts`), anchored at the
-oldest message currently on record for that group, until WhatsApp stops returning anything
-further back. That's the real, undocumented boundary of what's available — **not** a guarantee of
-reaching the group's full history since it was created.
+older messages in on purpose, any user with the `groups` feature can select **one** group on the
+**Groups** page and click **"Backfill history"**. This pages backward through WhatsApp's on-demand
+history sync (`sock.fetchMessageHistory`, the same mechanism `whatsapp_bridge/src/handlers/polls.ts`
+already used for one-off poll recovery — see `whatsapp_bridge/src/handlers/backfill.ts`), anchored
+at the oldest message currently on record for that group, and keeps requesting further pages,
+with pacing between requests, until WhatsApp stops returning anything further back. That boundary
+is real but undocumented — **not** a guarantee of reaching the group's full history since it was
+created, and it varies per group (an old or quiet group may simply have nothing more to give).
+Once retrieved, backfilled messages flow through the exact same pipeline as live ones, so they're
+immediately searchable via keyword search and counted in the messages monitor — nothing is
+truncated or summarized, every message WhatsApp hands back is stored.
 
 A few deliberate constraints, given this is more sync traffic than the bridge normally generates
 on a live paired number (see the ban-risk notes below):
 
 - A group needs at least one message already on record to backfill from — there's nothing to
   anchor a fresh request to otherwise.
-- Selected groups are processed **one at a time, sequentially** (`app/services/backfill_service.py`),
-  never concurrently, no matter how many are selected at once.
-- It's gated to `super_admin` specifically (`require_super_admin`), not just the `groups` feature —
-  the same stricter bar as the Admin page's automation switches.
+- Exactly **one group per request** — the endpoint rejects a request with more than one
+  `group_jid`, and the Groups page button is disabled unless exactly one row is selected.
+- A **system-wide lock**: if any group's backfill is still `running`, a new request for a
+  *different* group is rejected with 409 until the first one finishes
+  (`SupabaseGroupRepository.get_running_backfill`). This matters more now that it isn't
+  super_admin-only — several users triggering backfills at once would be exactly the kind of
+  concentrated sync traffic this stays conservative about.
 - It's a manual, deliberate action, not something that runs automatically on reconnect or on a
-  schedule — recommend testing on a single, less-active group first before selecting many at once.
+  schedule.
+- Progress (messages added, and the date it reached back to) is tracked on the `groups` row and
+  shown on the Groups page — requires
+  `supabase/migrations/019_add_backfill_status_to_groups.sql` to be applied; without it the
+  backfill itself still works, it just won't show progress (`BackfillService._record_status`
+  degrades gracefully and logs a warning instead of failing).
 
 **Not ported:** the reference repo's core architecture is fully multi-tenant — every registered
 user pairs their own separate WhatsApp number through their own dedicated bridge process. This

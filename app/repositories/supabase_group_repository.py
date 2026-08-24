@@ -91,6 +91,16 @@ class SupabaseGroupRepository:
         )
         return response.data or []
 
+    def get_running_backfill(self) -> dict | None:
+        """Any group currently mid-backfill, account-wide -- used to enforce that only one
+        backfill ever runs at a time, no matter which user (or how many, now that this isn't
+        super_admin-only) triggers one."""
+        response = (
+            self._client.table("groups").select("group_jid,group_name").eq("backfill_status", "running").limit(1).execute()
+        )
+        rows = response.data or []
+        return rows[0] if rows else None
+
     def mark_backfill_started(self, group_jid: str) -> None:
         self._client.table("groups").update(
             {
